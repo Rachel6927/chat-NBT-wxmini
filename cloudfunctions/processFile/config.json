@@ -1,0 +1,8 @@
+{
+  "name": "processFile",
+  "version": "1.0.0",
+  "description": "处理上传的文件",
+  "main": "index.js",
+  "triggers": [],
+  "runtime": "Nodejs12"
+}

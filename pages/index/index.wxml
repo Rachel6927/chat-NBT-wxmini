@@ -1,0 +1,61 @@
+<view class="container">
+  <view class="header">
+    <view class="menu-btn" bindtap="toggleSidebar">
+      <image src="/img/menu.png"></image>
+    </view>
+    <view class="title">ChatGPT</view>
+    <view class="register-btn">注册</view>
+  </view>
+  <scroll-view class="message-list" scroll-y="true">
+    <block wx:for="{{messages}}" wx:key="index">
+      <view class="message {{item.type}}">
+        <view class="avatar">
+          <image src="{{item.avatar}}"></image>
+        </view>
+        <view class="message-content">
+          <text>{{item.content}}</text>
+          <!-- 添加文件预览 -->
+          <view class="file-preview" wx:if="{{item.fileInfo}}">
+            <view class="file-info">
+              <image src="/img/{{item.fileInfo.type}}.png" class="file-icon"></image>
+              <text class="file-name">{{item.fileInfo.name}}</text>
+              <text class="file-size">{{item.fileInfo.size}}</text>
+            </view>
+            <view class="file-content" wx:if="{{item.fileInfo.content}}">
+              <text>{{item.fileInfo.content}}</text>
+            </view>
+          </view>
+          <view class="copy-btn" wx:if="{{item.type === 'bot'}}" bindtap="copyMessage" data-content="{{item.content}}">
+            <image src="/img/copy.png"></image>
+          </view>
+        </view>
+      </view>
+    </block>
+  </scroll-view>
+  <view class="input-area">
+    <!-- 文件预览区域 -->
+    <view class="file-preview-area" wx:if="{{selectedFile}}">
+      <view class="file-preview-box">
+        <image src="/img/{{selectedFile.type}}.png" class="file-icon"></image>
+        <text class="file-name">{{selectedFile.name}}</text>
+        <text class="file-size">{{selectedFile.size}}</text>
+        <view class="close-btn" bindtap="removeSelectedFile">
+          <image src="/img/close.png"></image>
+        </view>
+      </view>
+    </view>
+    <view class="input-box">
+      <view class="upload-btn" bindtap="chooseDocument">
+        <image src="/img/image.png" mode="aspectFit"></image>
+      </view>
+      <input type="text" value="{{inputValue}}" bindinput="onInput" placeholder="请输入消息"/>
+      <view class="voice-btn" bindtap="startRecord">
+        <image src="/img/voice.png"></image>
+      </view>
+      <view class="send-btn" bindtap="sendMessage">
+        <image src="/img/send.png"></image>
+      </view>
+    </view>
+  </view>
+  <sidebar id="sidebar" isOpen="{{sidebarOpen}}" bindtoggle="toggleSidebar"></sidebar>
+</view>

@@ -1,0 +1,24 @@
+<view class="sidebar {{isOpen ? 'open' : ''}}">  
+  <view class="chat-history">
+    <view class="history-title">历史记录</view>
+    <scroll-view scroll-y="true" class="history-scroll">
+      <view class="history-item" wx:for="{{chatHistory}}" wx:key="index" bindtap="selectHistory" data-index="{{index}}">
+        <text class="history-text">{{item.title}}</text>
+        <text class="history-time">{{item.time}}</text>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view class="user-info" wx:if="{{!userInfo}}">
+    <button class="login-btn" open-type="getUserInfo" bindgetuserinfo="getUserProfile">微信登录</button>
+  </view>
+  <view class="user-profile" wx:else>
+    <image class="avatar" src="{{userInfo.avatarUrl}}"></image>
+    <text class="nickname">{{userInfo.nickName}}</text>
+  </view>
+  <view class="sidebar-footer">
+    <button class="clear-history" bindtap="clearHistory">清除历史记录</button>
+  </view>
+</view>
+
+<view class="sidebar-mask" wx:if="{{isOpen}}" bindtap="toggleSidebar"></view>

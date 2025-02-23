@@ -1,0 +1,189 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: #f0f2f5;
+    height: 100vh;
+}
+
+.container {
+    display: flex;
+    height: calc(100vh - 30px);
+    margin-top: 30px;
+    position: relative;
+    background-color: #fff;
+}
+
+/* 历史对话栏样式 */
+.history-panel {
+    width: 250px;
+    background-color: #f7f7f8;
+    border-right: 1px solid #e6e6e6;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease;
+}
+
+.history-header {
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e6e6e6;
+}
+
+.history-header h3 {
+    font-size: 16px;
+    color: #333;
+}
+
+#toggleHistory {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #666;
+}
+
+.history-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+/* 主聊天区域样式 */
+.chat-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #fff;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.input-area {
+    border-top: 1px solid #e6e6e6;
+    padding: 10px 20px;
+    background-color: #fff;
+}
+
+.toolbar {
+    margin-bottom: 10px;
+}
+
+.tool-btn {
+    background-color: #f0f2f5;
+    border: none;
+    padding: 5px 15px;
+    margin-right: 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.tool-btn:hover {
+    background-color: #e4e6e9;
+}
+
+.message-input {
+    display: flex;
+    gap: 10px;
+}
+
+#messageInput {
+    flex: 1;
+    border: 1px solid #e6e6e6;
+    border-radius: 4px;
+    padding: 8px;
+    resize: none;
+    height: 36px;
+    font-size: 14px;
+}
+
+#sendMessage {
+    background-color: #1677ff;
+    color: white;
+    border: none;
+    padding: 0 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    height: 36px;
+    font-size: 14px;
+}
+
+#sendMessage:hover {
+    background-color: #4096ff;
+}
+
+/* 用户信息栏样式 */
+.user-info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 250px;
+    padding: 15px;
+    background-color: #f7f7f8;
+    border-top: 1px solid #e6e6e6;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.user-avatar img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.user-details {
+    flex: 1;
+}
+
+#userName {
+    display: block;
+    font-size: 14px;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+#loginButton {
+    background-color: #07c160;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+#loginButton:hover {
+    background-color: #06ae56;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .history-panel {
+        position: absolute;
+        height: 100%;
+        z-index: 100;
+        transform: translateX(-100%);
+    }
+
+    .history-panel.show {
+        transform: translateX(0);
+    }
+
+    .user-info {
+        width: 100%;
+    }
+}

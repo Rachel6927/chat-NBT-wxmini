@@ -1,0 +1,36 @@
+<view class="sidebar {{isOpen ? 'open' : ''}}">
+  <navigator url="/pages/index/index" open-type="redirect">
+    <view class="sidebar-mask" bindtap="onClose"></view>
+  </navigator>
+  <view class="sidebar-content">
+    <view class="sidebar-header">
+      <view class="user-info">
+        <block wx:if="{{!hasUserInfo}}">
+          <button class="login-btn" bindtap="getUserProfile">登录</button>
+        </block>
+        <block wx:else>
+          <image class="avatar" src="{{userInfo.avatarUrl}}"></image>
+          <text class="nickname">{{userInfo.nickName}}</text>
+        </block>
+      </view>
+    </view>
+    
+    <view class="history-section">
+      <view class="section-header">
+        <text>历史记录</text>
+        <text class="clear-btn" bindtap="clearHistory">清空</text>
+      </view>
+      <scroll-view scroll-y class="history-list">
+        <block wx:if="{{chatHistory.length > 0}}">
+          <view class="history-item" wx:for="{{chatHistory}}" wx:key="time">
+            <text class="history-content">{{item.content}}</text>
+            <text class="history-time">{{item.time}}</text>
+          </view>
+        </block>
+        <view wx:else class="empty-history">
+          <text>暂无历史记录</text>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+</view>

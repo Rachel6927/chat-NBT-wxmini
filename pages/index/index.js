@@ -155,6 +155,9 @@ Page({
       selectedFile: null
     });
 
+    // 发送消息后滚动到底部
+    this.scrollToBottom();
+
     this.sendToServer(content);
   },
 
@@ -633,6 +636,9 @@ Page({
       messages: [...this.data.messages, botMessage]
     });
 
+    // AI 回复开始时滚动到底部
+    this.scrollToBottom();
+
     const messages = this.data.messages;
     const messageIndex = messages.length - 1;
 
@@ -702,6 +708,8 @@ Page({
                     const segments = this.processMessage(botResponse);
                     messages[messageIndex].segments = segments;
                     this.setData({ messages });
+                    // 每次更新消息后滚动到底部
+                    this.scrollToBottom();
                     currentIndex++;
                     setTimeout(processNextChunk, 50);
                   }
@@ -806,5 +814,22 @@ Page({
         });
       }
     });
+  },
+
+  // 添加滚动到底部的方法
+  scrollToBottom() {
+    wx.createSelectorQuery()
+      .select('.message-list')
+      .boundingClientRect(rect => {
+        if (rect) {
+          // 使用 nextTick 确保在视图更新后滚动
+          wx.nextTick(() => {
+            this.setData({
+              scrollTop: 100000 // 使用一个足够大的数字确保滚动到底部
+            });
+          });
+        }
+      })
+      .exec();
   }
 })

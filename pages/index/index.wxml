@@ -6,7 +6,13 @@
     <view class="title">ChatGPT</view>
     <view class="register-btn">注册</view>
   </view>
-  <scroll-view class="message-list" scroll-y="true">
+  <scroll-view 
+    class="message-list" 
+    scroll-y="true"
+    scroll-top="{{scrollTop}}"
+    scroll-with-animation="true"
+    enhanced="true"
+  >
     <block wx:for="{{messages}}" wx:key="index">
       <!-- 用户消息 -->
       <view class="message {{item.role}}" wx:if="{{item.role === 'user'}}">

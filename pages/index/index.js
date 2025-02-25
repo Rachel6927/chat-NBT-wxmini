@@ -38,9 +38,13 @@ Page({
   initData() {
     const messages = [
       {
-        type: 'system',
+        role: 'assistant',
         content: '欢迎使用Chat NBT',
-        avatar: '/img/system-avatar.png'
+        avatar: '/img/system-avatar.png',
+        segments: [{
+          type: 'text',
+          content: '欢迎使用Chat NBT'
+        }]
       }
     ];
     this.setData({ messages });
@@ -135,8 +139,12 @@ Page({
     }
 
     const userMessage = {
-      type: 'user',
+      role: 'user',
       content: inputValue || '[文件]',
+      segments: [{
+        type: 'text',
+        content: inputValue || '[文件]'
+      }],
       avatar: '/img/user-avatar.png',
       fileInfo: fileInfo
     };
@@ -615,8 +623,9 @@ Page({
 
   sendToServer(content) {
     const botMessage = {
-      type: 'bot',
+      role: 'assistant',
       content: '',
+      segments: [],
       avatar: '/img/system-avatar.png'
     };
 
@@ -689,7 +698,9 @@ Page({
                   if (result.choices && result.choices[0]) {
                     const content = result.choices[0].delta?.content || '';
                     botResponse += content;
-                    messages[messageIndex].content = botResponse;
+                    // 处理消息中的代码块
+                    const segments = this.processMessage(botResponse);
+                    messages[messageIndex].segments = segments;
                     this.setData({ messages });
                     currentIndex++;
                     setTimeout(processNextChunk, 50);
@@ -708,19 +719,91 @@ Page({
             processNextChunk();
           } catch (error) {
             console.error('处理响应失败:', error);
-            messages[messageIndex].content = '抱歉，我遇到了一些问题，请稍后再试。';
+            messages[messageIndex].segments = [{
+              type: 'text',
+              content: '抱歉，我遇到了一些问题，请稍后再试。'
+            }];
             this.setData({ messages });
           }
         } else {
           console.error('请求失败:', res);
-          messages[messageIndex].content = '抱歉，服务器响应异常，请稍后再试。';
+          messages[messageIndex].segments = [{
+            type: 'text',
+            content: '抱歉，服务器响应异常，请稍后再试。'
+          }];
           this.setData({ messages });
         }
       },
       fail: (error) => {
         console.error('请求失败:', error);
-        messages[messageIndex].content = '抱歉，网络请求失败，请检查网络连接。';
+        messages[messageIndex].segments = [{
+          type: 'text',
+          content: '抱歉，网络请求失败，请检查网络连接。'
+        }];
         this.setData({ messages });
+      }
+    });
+  },
+
+  processMessage(content) {
+    // 处理消息中的代码块
+    const codeBlockRegex = /```(.*?)\n([\s\S]*?)```/g;
+    let lastIndex = 0;
+    const segments = [];
+    let match;
+
+    while ((match = codeBlockRegex.exec(content)) !== null) {
+      // 添加代码块之前的文本
+      if (match.index > lastIndex) {
+        segments.push({
+          type: 'text',
+          content: content.substring(lastIndex, match.index)
+        });
+      }
+
+      // 添加代码块
+      segments.push({
+        type: 'code',
+        language: match[1].trim() || 'plaintext',
+        content: match[2].trim()
+      });
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    // 添加最后一段文本
+    if (lastIndex < content.length) {
+      segments.push({
+        type: 'text',
+        content: content.substring(lastIndex)
+      });
+    }
+
+    return segments;
+  },
+
+  // 在接收到消息响应时调用
+  handleResponse(response) {
+    const segments = this.processMessage(response.content);
+    const messages = this.data.messages;
+    messages.push({
+      role: 'assistant',
+      segments: segments
+    });
+    
+    this.setData({ messages });
+  },
+
+  copyCode(e) {
+    const code = e.currentTarget.dataset.code;
+    wx.setClipboardData({
+      data: code,
+      success: () => {
+        wx.showToast({
+          title: '代码已复制',
+          icon: 'success',
+          duration: 1500
+        });
       }
     });
   }

@@ -1,6 +1,6 @@
 // 微信授权配置
 const wxConfig = {
-    appId: 'wx65a32d3a0d58bd92', // 替换为实际的微信AppID
+    appId: 'wx1a8fa5d529499c17', // 替换为实际的微信AppID
     scope: 'snsapi_userinfo',
     state: 'wxLogin',
     redirectUri: encodeURIComponent('your_redirect_uri') // 替换为实际的回调地址

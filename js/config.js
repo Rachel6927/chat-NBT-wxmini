@@ -58,7 +58,7 @@ const apiConfig = {
 
 // Kimi API配置
 const kimiConfig = {
-  apiKey: process.env.KIMI_API_KEY || '',  // 从环境变量获取API密钥
+  apiKey: 'sk-o2Um38xVLpmVJc5p3P350sgOqwbMmtIb6H0pNabWRaqXDipw' || '',  // 从环境变量获取API密钥
   baseUrl: 'https://api.moonshot.cn/v1',
   model: 'moonshot-v1-32k',
   temperature: 0.3,

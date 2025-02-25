@@ -8,26 +8,38 @@
   </view>
   <scroll-view class="message-list" scroll-y="true">
     <block wx:for="{{messages}}" wx:key="index">
-      <view class="message {{item.type}}">
+      <!-- 用户消息 -->
+      <view class="message {{item.role}}" wx:if="{{item.role === 'user'}}">
         <view class="avatar">
           <image src="{{item.avatar}}"></image>
         </view>
         <view class="message-content">
           <text>{{item.content}}</text>
-          <!-- 添加文件预览 -->
-          <view class="file-preview" wx:if="{{item.fileInfo}}">
-            <view class="file-info">
-              <image src="/img/{{item.fileInfo.type}}.png" class="file-icon"></image>
-              <text class="file-name">{{item.fileInfo.name}}</text>
-              <text class="file-size">{{item.fileInfo.size}}</text>
-            </view>
-            <view class="file-content" wx:if="{{item.fileInfo.content}}">
-              <text>{{item.fileInfo.content}}</text>
-            </view>
-          </view>
-          <view class="copy-btn" wx:if="{{item.type === 'bot'}}" bindtap="copyMessage" data-content="{{item.content}}">
-            <image src="/img/copy.png"></image>
-          </view>
+        </view>
+      </view>
+      
+      <!-- AI响应 -->
+      <view class="message {{item.role}}" wx:else>
+        <view class="avatar">
+          <image src="{{item.avatar}}"></image>
+        </view>
+        <view class="message-content">
+          <block wx:if="{{item.segments}}">
+            <block wx:for="{{item.segments}}" wx:for-item="segment" wx:key="index">
+              <text wx:if="{{segment.type === 'text'}}">{{segment.content}}</text>
+              <view wx:else class="code-block">
+                <view class="code-header">
+                  <text class="language">{{segment.language}}</text>
+                  <view class="copy-btn" bindtap="copyCode" data-code="{{segment.content}}">
+                    copy
+                  </view>
+                </view>
+                <view class="code-content">
+                  <text user-select="true">{{segment.content}}</text>
+                </view>
+              </view>
+            </block>
+          </block>
         </view>
       </view>
     </block>

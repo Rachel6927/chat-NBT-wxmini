@@ -2,9 +2,14 @@
   <view class="chat-history">
     <view class="history-title">历史记录</view>
     <scroll-view scroll-y="true" class="history-scroll">
-      <view class="history-item" wx:for="{{chatHistory}}" wx:key="index" bindtap="selectHistory" data-index="{{index}}">
-        <text class="history-text">{{item.title}}</text>
-        <text class="history-time">{{item.time}}</text>
+      <view class="history-item" wx:for="{{chatHistory}}" wx:key="index" data-index="{{item._id}}">
+        <view class="history-left" bindtap="selectHistory"  data-index="{{item._id}}">
+          <text class="history-text">{{item.title}}</text>
+          <text class="history-time">{{item.updateTime}}</text>
+        </view>
+        <view class="delete-btn" bindtap="deleteHistory" data-index="{{item._id}}">
+          <image src="/img/delChat.png"></image>
+        </view>
       </view>
     </scroll-view>
   </view>

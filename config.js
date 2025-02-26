@@ -1,6 +1,7 @@
 // 微信授权配置
 const wxConfig = {
-    appId: 'wx1a8fa5d529499c17', // 替换为实际的微信AppID
+    // appId: 'wx65a32d3a0d58bd92', // 替换为实际的微信AppID
+    appId: 'wxe302662c9cb50b09',
     scope: 'snsapi_userinfo',
     state: 'wxLogin',
     redirectUri: encodeURIComponent('your_redirect_uri') // 替换为实际的回调地址
@@ -8,7 +9,9 @@ const wxConfig = {
 
 // 云开发配置
 const cloudConfig = {
-    env: 'chat-nbt-0gynup7v274d685f'
+    // env: 'chat-nbt-0gynup7v274d685f'
+    env: 'chatnbt-0g1p6voscb752ba5',
+    dataBse :'chatHistory'
 };
 
 // 后端API配置

@@ -1,4 +1,4 @@
-import { apiConfig, wxConfig, uploadConfig, kimiConfig } from '../../js/config.js';
+import { apiConfig, wxConfig, uploadConfig, kimiConfig, cloudConfig } from '../../js/config.js';
 
 Page({
   data: {
@@ -7,25 +7,12 @@ Page({
     recording: false,
     sidebarOpen: false,
     recorderManager: null,
-    selectedFile: null
+    selectedFile: null,
+    currentChatId: null  // 当前会话ID
   },
 
-  onLoad() {
-    // 检查云环境初始化
-    if (!wx.cloud) {
-      wx.showToast({
-        title: '请使用 2.2.3 或以上的基础库',
-        icon: 'none'
-      });
-      return;
-    }
-    
-    // 确保云环境已初始化
-    wx.cloud.init({
-      env: 'chat-nbt-0gynup7v274d685f',
-      traceUser: true
-    });
-    
+
+  onLoad() {  
     this.checkLogin();
     this.initData();
     // 初始化录音管理器
@@ -33,6 +20,16 @@ Page({
       recorderManager: wx.getRecorderManager()
     });
     this.initRecorderManager();
+  },
+
+  createNewChat() {
+    this.checkLogin();
+        this.initData();
+        // 初始化录音管理器
+        this.setData({
+          recorderManager: wx.getRecorderManager()
+        });
+        this.initRecorderManager();
   },
 
   initData() {
@@ -48,6 +45,14 @@ Page({
       }
     ];
     this.setData({ messages });
+    this.setData({
+      inputValue: '',
+      recording: false,
+      sidebarOpen: false,
+      recorderManager: null,
+      selectedFile: null,
+      currentChatId: null
+    })
   },
 
   initRecorderManager() {
@@ -121,8 +126,26 @@ Page({
     });
   },
 
-  sendMessage() {
-    const { inputValue, messages, selectedFile } = this.data;
+  async loadChatHistory(chatHistoryId) {
+    try {
+      const db = wx.cloud.database();
+      
+      const result = await db.collection('chatHistory')
+        .doc(chatHistoryId)
+        .get();
+      if (result.data) {
+        this.setData({
+          currentChatId: chatHistoryId,
+          messages: result.data.messages
+        });
+      }
+    } catch (error) {
+      console.error('加载会话失败:', error);
+    }
+  },
+
+  async sendMessage() {
+    const { inputValue, messages, selectedFile, currentChatId } = this.data;
     if (!inputValue.trim() && !selectedFile) return;
 
     let content = inputValue;
@@ -149,8 +172,45 @@ Page({
       fileInfo: fileInfo
     };
 
+    if(currentChatId==null){
+      try {
+        const db = wx.cloud.database();
+        const result = await db.collection('chatHistory').add({
+          data: {
+            createTime: db.serverDate(),
+            updateTime: db.serverDate(),
+            title: this.data.inputValue.slice(0, 20), // 使用第一条消息作为标题
+            messages: [userMessage]
+          }
+        });
+        this.setData({
+          messages: [...messages, userMessage],
+          currentChatId:result._id
+        });
+        const sidebar = this.selectComponent('#sidebar');
+        sidebar.loadChatHistory();
+      } catch (error) {
+        console.error('创建新会话失败:', error);
+      }
+    } else {
+      // 更新现有会话
+      this.setData({
+        messages: [...messages, userMessage],
+      });
+      try {
+        const db = wx.cloud.database();
+        await db.collection('chatHistory').doc(this.data.currentChatId).update({
+          data: {
+            messages: messages,
+            updateTime: db.serverDate()
+          }
+        });
+      } catch (error) {
+        console.error('更新会话失败:', error);
+      }
+    }
+    
     this.setData({
-      messages: [...messages, userMessage],
       inputValue: '',
       selectedFile: null
     });
@@ -679,7 +739,7 @@ Page({
         ],
         stream: true
       },
-      success: (res) => {
+      success: async(res) => {
         if (res.statusCode === 200) {
           try {
             // 处理流式响应数据
@@ -687,7 +747,7 @@ Page({
             let botResponse = '';
             let currentIndex = 0;
             
-            const processNextChunk = () => {
+            const processNextChunk = async() => {
               if (currentIndex >= lines.length) return;
               
               const line = lines[currentIndex];
@@ -698,7 +758,7 @@ Page({
                   setTimeout(processNextChunk, 50);
                   return;
                 }
-                
+                                
                 try {
                   const result = JSON.parse(jsonData);
                   if (result.choices && result.choices[0]) {
@@ -708,10 +768,24 @@ Page({
                     const segments = this.processMessage(botResponse);
                     messages[messageIndex].segments = segments;
                     this.setData({ messages });
+
                     // 每次更新消息后滚动到底部
                     this.scrollToBottom();
                     currentIndex++;
                     setTimeout(processNextChunk, 50);
+
+                    // 每次更新消息后都更新数据库
+                    try {
+                      const db = wx.cloud.database();
+                      await db.collection('chatHistory').doc(this.data.currentChatId).update({
+                        data: {
+                          messages: messages,
+                          updateTime: db.serverDate()
+                        }
+                      });
+                    } catch (error) {
+                      console.error('更新会话失败:', error);
+                    }
                   }
                 } catch (e) {
                   console.error('解析响应数据失败:', e);
@@ -725,6 +799,7 @@ Page({
             };
             
             processNextChunk();
+            
           } catch (error) {
             console.error('处理响应失败:', error);
             messages[messageIndex].segments = [{
@@ -740,7 +815,7 @@ Page({
             content: '抱歉，服务器响应异常，请稍后再试。'
           }];
           this.setData({ messages });
-        }
+        }       
       },
       fail: (error) => {
         console.error('请求失败:', error);
@@ -832,4 +907,6 @@ Page({
       })
       .exec();
   }
+
+  
 })

@@ -3,6 +3,9 @@
     <view class="menu-btn" bindtap="toggleSidebar">
       <image src="/img/menu.png"></image>
     </view>
+    <view class="menu-btn" bindtap="createNewChat">
+      <image src="/img/newChat.png"></image>
+    </view>
     <view class="title">ChatGPT</view>
     <view class="register-btn">注册</view>
   </view>

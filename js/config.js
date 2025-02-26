@@ -22,13 +22,16 @@ const dbConfig = {
 
 // 微信小程序配置
 const wxConfig = {
-  appId: 'wx65a32d3a0d58bd92',
+  // appId: 'wx65a32d3a0d58bd92',
+  appId: 'wxe302662c9cb50b09',
   appSecret: 'your_app_secret'
+  
 };
 
 // 云开发环境配置
 const cloudConfig = {
-  env: 'chat-nbt-0gynup7v274d685f'
+  // env: 'chat-nbt-0gynup7v274d685f'
+  env: 'chatnbt-0g1p6voscb752ba5'
 };
 
 // 文件上传配置
@@ -58,7 +61,7 @@ const apiConfig = {
 
 // Kimi API配置
 const kimiConfig = {
-  apiKey: 'sk-o2Um38xVLpmVJc5p3P350sgOqwbMmtIb6H0pNabWRaqXDipw' || '',  // 从环境变量获取API密钥
+  apiKey: 'sk-TaERYsf2AnsmWtWtdj755LPUuBAMfzLJYtOoJPb8BcyRLa8m' || '',  // 从环境变量获取API密钥
   baseUrl: 'https://api.moonshot.cn/v1',
   model: 'moonshot-v1-32k',
   temperature: 0.3,

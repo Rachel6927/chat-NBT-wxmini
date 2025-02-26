@@ -21,13 +21,11 @@
   border-bottom: 1px solid #eee;
 }
 
-
-
 .chat-history {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 30px 20px 0;
+  padding: 30px 10px 0px 20px;
 }
 
 .history-title {
@@ -46,6 +44,11 @@
   padding: 12px 0;
   border-bottom: 1px solid #f5f5f5;
   cursor: pointer;
+  display: flex;
+  flex-direction: row;
+}
+.history-left{
+  flex:1;
 }
 
 .history-text {
@@ -58,6 +61,19 @@
 .history-time {
   font-size: 12px;
   color: #999;
+}
+
+.delete-btn {
+  width: 24px;
+  height: 24px;
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  overflow: hidden;
+}
+.delete-btn image {
+  width: 100%;
+  height: 100%;
 }
 
 .user-info {

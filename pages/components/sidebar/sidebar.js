@@ -1,8 +1,16 @@
+const { cloudConfig } = require("../../../config");
+
 Component({
   properties: {
     isOpen: {
       type: Boolean,
-      value: false
+      value: false,
+      observer: function(newVal, oldVal) {
+        if (newVal && !oldVal) {
+          // 当 isOpen 从 false 变为 true 时，调用 loadChatHistory
+          this.loadChatHistory();
+        }
+      }
     }
   },
 
@@ -48,23 +56,62 @@ Component({
       });
     },
 
-    loadChatHistory() {
-      wx.getStorage({
-        key: 'chatHistory',
-        success: (res) => {
-          this.setData({ chatHistory: res.data || [] });
-        },
-        fail: () => {
-          this.setData({ chatHistory: [] });
-        }
-      });
+    async loadChatHistory() {
+      try {
+        const db = wx.cloud.database();
+        const result = await db.collection(cloudConfig.dataBse)
+          .orderBy('updateTime', 'desc')
+          .get();
+          const formattedChatHistory = result.data.map(item => ({
+            ...item,
+            updateTime: new Date(item.updateTime).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) // 格式化时间
+        }));
+
+        this.setData({
+            chatHistory: formattedChatHistory
+        });
+      } catch (error) {
+        console.error('获取会话列表失败:', error);
+      }
     },
 
     selectHistory(e) {
-      const index = e.currentTarget.dataset.index;
-      const history = this.data.chatHistory[index];
-      this.triggerEvent('select', { history });
+      const chatHistoryId = e.currentTarget.dataset.index;
+      const page = this.getPageInstance();
+      if(page) {
+        page.loadChatHistory(chatHistoryId);
+      }
       this.toggleSidebar();
+    },
+
+    getPageInstance() {
+      const pages = getCurrentPages();
+      return pages[pages.length - 1];
+    },
+
+    deleteHistory(e) {
+      const chatHistoryId = e.currentTarget.dataset.index;
+      wx.showModal({
+        title: '提示',
+        content: '确定要删除此记录吗？',
+        success: (res) => {
+          if (res.confirm) {
+            const db = wx.cloud.database();
+            db.collection(cloudConfig.dataBse).doc(chatHistoryId).remove({
+              success: res => {
+                wx.showToast({
+                  title: '删除成功',
+                })
+                this.loadChatHistory()//删除成功重新加载
+              }, fail: err => {
+                wx.showToast({
+                  title: '删除失败',
+                })
+              }        
+            })
+          }
+        }
+      })
     },
 
     clearHistory() {
@@ -74,7 +121,10 @@ Component({
         success: (res) => {
           if (res.confirm) {
             this.setData({ chatHistory: [] });
-            wx.removeStorage({ key: 'chatHistory' });
+            const db = wx.cloud.database();
+            db.collection(cloudConfig.dataBse).where({
+              all:null,   
+            }).remove();
             this.triggerEvent('clear');
           }
         }
@@ -85,17 +135,17 @@ Component({
       this.triggerEvent('toggle');
     },
 
-    addChatHistory(title) {
-      const history = {
-        title,
-        time: new Date().toLocaleString()
-      };
-      const chatHistory = [history, ...this.data.chatHistory];
-      this.setData({ chatHistory });
-      wx.setStorage({
-        key: 'chatHistory',
-        data: chatHistory
-      });
-    }
+    // addChatHistory(title) {
+    //   const history = {
+    //     title,
+    //     time: new Date().toLocaleString()
+    //   };
+    //   const chatHistory = [history, ...this.data.chatHistory];
+    //   this.setData({ chatHistory });
+    //   wx.setStorage({
+    //     key: 'chatHistory',
+    //     data: chatHistory
+    //   });
+    // }
   }
 });

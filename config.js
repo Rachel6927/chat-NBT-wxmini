@@ -60,19 +60,35 @@ const apiConfig = {
 
 // Kimi API配置
 const kimiConfig = {
+    // API密钥配置
     apiKey: 'sk-cGB1pPSaLF8alrvHGtpdyESXPS0rky6H0VtQ0jVRE9K3FS98',
-    baseUrl: 'https://api.moonshot.cn/v1',  // 修改 baseURL 为 baseUrl
-    model: 'moonshot-v1-8k',
-    temperature: 0.7,
-    systemPrompt: '你是 Kimi，由 Moonshot AI 提供的人工智能助手，你更擅长中文和英文的对话。你会为用户提供安全，有帮助，准确的回答。同时，你会拒绝一切涉及恐怖主义，种族歧视，黄色暴力等问题的回答。Moonshot AI 为专有名词，不可翻译成其他语言。',
-    headers: {
-      'Authorization': 'Bearer sk-cGB1pPSaLF8alrvHGtpdyESXPS0rky6H0VtQ0jVRE9K3FS98',
-      'Content-Type': 'application/json'
+    baseUrl: 'https://api.moonshot.cn/v1',
+    
+    // 模型配置
+    models: {
+        text: 'moonshot-v1-8k',          // 文本对话模型
+        vision: 'moonshot-v1-8k-vision-preview'  // 视觉模型
     },
-    timeout: 30000,  // 减少超时时间为30秒
-    retries: 3,      // 减少重试次数为3
-    retryDelay: 1000 // 减少重试间隔为1秒
-  };
+    temperature: 0.3,
+    
+    // 系统提示词
+    systemPrompt: '你是 Kimi，由 Moonshot AI 提供的人工智能助手，你更擅长中文和英文的对话。你会为用户提供安全，有帮助，准确的回答。同时，你会拒绝一切涉及恐怖主义，种族歧视，黄色暴力等问题的回答。Moonshot AI 为专有名词，不可翻译成其他语言。',
+    
+    // 请求配置
+    headers: {
+        'Authorization': 'Bearer sk-cGB1pPSaLF8alrvHGtpdyESXPS0rky6H0VtQ0jVRE9K3FS98',
+        'Content-Type': 'application/json'
+    },
+    timeout: 30000,
+    retries: 3,
+    retryDelay: 1000,
+    
+    // 文件处理配置
+    fileConfig: {
+        purpose: 'file-extract',
+        supportedTypes: ['pdf', 'doc', 'docx', 'txt', 'png', 'jpg', 'jpeg']
+    }
+};
 
 // 环境配置
 const env = {

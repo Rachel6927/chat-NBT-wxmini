@@ -1,4 +1,4 @@
-const { cloudConfig } = require("../../../config");
+const { cloudConfig, dbConfig } = require("../../../config");
 
 Component({
   properties: {
@@ -58,20 +58,36 @@ Component({
 
     async loadChatHistory() {
       try {
+        // 添加配置检查
+        if (!dbConfig || !dbConfig.collections || !dbConfig.collections.chatHistory || !dbConfig.collections.chatHistory.name) {
+          console.error('数据库配置不完整');
+          throw new Error('数据库配置错误');
+        }
+
         const db = wx.cloud.database();
-        const result = await db.collection(cloudConfig.dataBse)
+        const result = await db.collection(dbConfig.collections.chatHistory.name)
           .orderBy('updateTime', 'desc')
           .get();
-          const formattedChatHistory = result.data.map(item => ({
-            ...item,
-            updateTime: new Date(item.updateTime).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) // 格式化时间
+
+        if (!result || !result.data) {
+          throw new Error('获取聊天记录失败');
+        }
+
+        const formattedChatHistory = result.data.map(item => ({
+          ...item,
+          updateTime: item.updateTime ? new Date(item.updateTime).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) : '未知时间'
         }));
 
         this.setData({
-            chatHistory: formattedChatHistory
+          chatHistory: formattedChatHistory
         });
       } catch (error) {
         console.error('获取会话列表失败:', error);
+        wx.showToast({
+          title: '获取历史记录失败',
+          icon: 'none',
+          duration: 2000
+        });
       }
     },
 
@@ -97,7 +113,7 @@ Component({
         success: (res) => {
           if (res.confirm) {
             const db = wx.cloud.database();
-            db.collection(cloudConfig.dataBse).doc(chatHistoryId).remove({
+            db.collection(dbConfig.collections.chatHistory.name).doc(chatHistoryId).remove({
               success: res => {
                 wx.showToast({
                   title: '删除成功',

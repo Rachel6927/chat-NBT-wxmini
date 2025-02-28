@@ -6,8 +6,7 @@
     <view class="menu-btn" bindtap="createNewChat">
       <image src="/img/newChat.png"></image>
     </view>
-    <view class="title">ChatGPT</view>
-    <view class="register-btn">注册</view>
+    <view class="title">ChatNBT</view>
   </view>
   <scroll-view 
     class="message-list" 
@@ -23,7 +22,40 @@
           <image src="{{item.avatar}}"></image>
         </view>
         <view class="message-content">
-          <text>{{item.content}}</text>
+          <block wx:for="{{item.segments}}" wx:for-item="segment" wx:key="index">
+            <!-- 文本内容 -->
+            <view wx:if="{{segment.type === 'text'}}" class="message-text">
+              {{segment.content}}
+            </view>
+            
+            <!-- 图片内容 -->
+            <image 
+              wx:elif="{{segment.type === 'image'}}"
+              src="{{segment.url}}"
+              mode="aspectFit"
+              class="message-image {{expandedFiles[index] ? 'expanded' : ''}}"
+              bindtap="toggleFilePreview"
+              data-index="{{index}}"
+            />
+            
+            <!-- 文件内容 -->
+            <view wx:elif="{{segment.type === 'file'}}" class="message-file">
+              <view class="file-preview-box">
+                <view class="preview-content">
+                  <view class="file-icon">📄</view>
+                  <view class="file-info">
+                    <text class="file-name">{{segment.name}}</text>
+                    <text class="file-size">{{segment.size}}</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </block>
+          
+          <!-- 复制按钮 -->
+          <view class="copy-message-btn" bindtap="copyMessage" data-message="{{item}}">
+            <image src="/img/copy.png"></image>
+          </view>
         </view>
       </view>
       
@@ -33,36 +65,52 @@
           <image src="{{item.avatar}}"></image>
         </view>
         <view class="message-content">
-          <block wx:if="{{item.segments}}">
-            <block wx:for="{{item.segments}}" wx:for-item="segment" wx:key="index">
-              <text wx:if="{{segment.type === 'text'}}">{{segment.content}}</text>
-              <view wx:else class="code-block">
-                <view class="code-header">
-                  <text class="language">{{segment.language}}</text>
-                  <view class="copy-btn" bindtap="copyCode" data-code="{{segment.content}}">
-                    copy
-                  </view>
-                </view>
-                <view class="code-content">
-                  <text user-select="true">{{segment.content}}</text>
+          <block wx:for="{{item.segments}}" wx:for-item="segment" wx:key="index">
+            <!-- 文本内容 -->
+            <view wx:if="{{segment.type === 'text'}}" class="message-text">
+              {{segment.content}}
+            </view>
+            
+            <!-- 代码块 -->
+            <view wx:elif="{{segment.type === 'code'}}" class="code-block">
+              <view class="code-header">
+                <text class="language">{{segment.language}}</text>
+                <view class="copy-btn" bindtap="copyCode" data-code="{{segment.content}}">
+                  copy
                 </view>
               </view>
-            </block>
+              <view class="code-content">
+                <text user-select="true">{{segment.content}}</text>
+              </view>
+            </view>
           </block>
+          
+          <!-- 复制按钮 -->
+          <view class="copy-message-btn" bindtap="copyMessage" data-message="{{item}}">
+            <image src="/img/copy.png"></image>
+          </view>
         </view>
       </view>
     </block>
   </scroll-view>
   <view class="input-area">
     <!-- 文件预览区域 -->
-    <view class="file-preview-area" wx:if="{{selectedFile}}">
+    <view class="file-preview-area {{selectedFile ? 'active' : ''}}" wx:if="{{selectedFile}}">
       <view class="file-preview-box">
-        <image src="/img/{{selectedFile.type}}.png" class="file-icon"></image>
-        <text class="file-name">{{selectedFile.name}}</text>
-        <text class="file-size">{{selectedFile.size}}</text>
-        <view class="close-btn" bindtap="removeSelectedFile">
-          <image src="/img/close.png"></image>
+        <view class="preview-content">
+          <image 
+            wx:if="{{selectedFile.preview}}" 
+            src="{{selectedFile.preview}}" 
+            mode="aspectFit" 
+            class="preview-image"
+          />
+          <view wx:else class="file-icon">📄</view>
+          <view class="file-info">
+            <text class="file-name">{{selectedFile.name}}</text>
+            <text class="file-size">{{selectedFile.formattedSize}}</text>
+          </view>
         </view>
+        <view class="close-btn" bindtap="removeSelectedFile">×</view>
       </view>
     </view>
     <view class="input-box">

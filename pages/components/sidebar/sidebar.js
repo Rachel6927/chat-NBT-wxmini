@@ -1,4 +1,4 @@
-const { cloudConfig } = require("../../../config");
+const { cloudConfig } = require("../../../js/config");
 
 Component({
   properties: {
@@ -7,8 +7,11 @@ Component({
       value: false,
       observer: function(newVal, oldVal) {
         if (newVal && !oldVal) {
+          const app = getApp();
+          const openid = app.globalData.openid;          
+          this.getUserInfo();
           // 当 isOpen 从 false 变为 true 时，调用 loadChatHistory
-          this.loadChatHistory();
+          this.loadChatHistory(openid);
         }
       }
     }
@@ -16,35 +19,28 @@ Component({
 
   data: {
     userInfo: null,
+    pageSize: 10, // 每页加载的数量
+    skipCount: 0, // 当前已跳过的记录数
+    hasMore: true, // 是否还有更多数据
     chatHistory: []
   },
 
-  lifetimes: {
-    attached() {
-      this.loadUserInfo();
-      this.loadChatHistory();
-    }
-  },
-
   methods: {
-    loadUserInfo() {
-      wx.getStorage({
-        key: 'userInfo',
-        success: (res) => {
-          this.setData({ userInfo: res.data });
-        }
-      });
+    initData(){
+      this.setData({
+        pageSize: 10, // 每页加载的数量
+        skipCount: 0, // 当前已跳过的记录数
+        hasMore: true, // 是否还有更多数据
+        chatHistory: []
+      })
     },
 
-    getUserProfile() {
-      wx.getUserProfile({
+    getUserInfo() {
+      wx.getUserInfo({
         desc: '用于完善用户资料',
         success: (res) => {
           this.setData({ userInfo: res.userInfo });
-          wx.setStorage({
-            key: 'userInfo',
-            data: res.userInfo
-          });
+          console.log(res.userInfo)
         },
         fail: (err) => {
           console.error('获取用户信息失败：', err);
@@ -56,23 +52,48 @@ Component({
       });
     },
 
-    async loadChatHistory() {
+    async loadChatHistory(openid) {
+      this.initData();
       try {
         const db = wx.cloud.database();
-        const result = await db.collection(cloudConfig.dataBse)
+        const result = await db.collection(cloudConfig.dataBase)
+          .where({
+            _openid:openid
+          })
+          .field({
+            id: true, // 只返回id字段
+            title: true, // 只返回title字段
+            updateTime: true // 只返回updateTime字段
+          })
           .orderBy('updateTime', 'desc')
           .get();
+
           const formattedChatHistory = result.data.map(item => ({
             ...item,
-            updateTime: new Date(item.updateTime).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) // 格式化时间
+            updateTime: this.formatTime(new Date(item.updateTime)) // 格式化时间
         }));
 
         this.setData({
-            chatHistory: formattedChatHistory
+          chatHistory: this.data.chatHistory.concat(formattedChatHistory),
         });
       } catch (error) {
-        console.error('获取会话列表失败:', error);
+        
+        wx.showToast({
+          title: '加载失败，请重试',
+          icon: 'none'
+        });
       }
+    },
+
+
+    formatTime(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+    
+      return `${year}/${month}/${day} ${hours}:${minutes}`;
     },
 
     selectHistory(e) {
@@ -97,7 +118,7 @@ Component({
         success: (res) => {
           if (res.confirm) {
             const db = wx.cloud.database();
-            db.collection(cloudConfig.dataBse).doc(chatHistoryId).remove({
+            db.collection(cloudConfig.dataBase).doc(chatHistoryId).remove({
               success: res => {
                 wx.showToast({
                   title: '删除成功',
@@ -122,7 +143,7 @@ Component({
           if (res.confirm) {
             this.setData({ chatHistory: [] });
             const db = wx.cloud.database();
-            db.collection(cloudConfig.dataBse).where({
+            db.collection(cloudConfig.dataBase).where({
               all:null,   
             }).remove();
             this.triggerEvent('clear');
@@ -135,17 +156,5 @@ Component({
       this.triggerEvent('toggle');
     },
 
-    // addChatHistory(title) {
-    //   const history = {
-    //     title,
-    //     time: new Date().toLocaleString()
-    //   };
-    //   const chatHistory = [history, ...this.data.chatHistory];
-    //   this.setData({ chatHistory });
-    //   wx.setStorage({
-    //     key: 'chatHistory',
-    //     data: chatHistory
-    //   });
-    // }
   }
 });

@@ -1,10 +1,10 @@
 {
   "name": "processFile",
   "version": "1.0.0",
-  "description": "处理上传的文件",
+  "description": "处理文件内容",
   "main": "index.js",
   "dependencies": {
-    "wx-server-sdk": "^2.6.3"
+    "mammoth": "^1.6.0"
   },
   "author": "",
   "license": "ISC"

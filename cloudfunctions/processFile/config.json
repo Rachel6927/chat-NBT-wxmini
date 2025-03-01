@@ -4,5 +4,8 @@
   "description": "处理上传的文件",
   "main": "index.js",
   "triggers": [],
-  "runtime": "Nodejs12"
+  "runtime": "Nodejs12",
+  "permissions": {
+    "openapi": []
+  }
 }

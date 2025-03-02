@@ -1,0 +1,46 @@
+<view class="file-qa-container" wx:if="{{visible}}">
+  <view class="header">
+    <view class="title">文件问答</view>
+    <view class="close-btn" bindtap="close">
+      <image src="/img/close.png"></image>
+    </view>
+  </view>
+
+  <view class="content">
+    <!-- 文件选择区域 -->
+    <view class="file-section" wx:if="{{!fileInfo}}">
+      <view class="upload-btn" bindtap="chooseFile">
+        <image src="/img/pdf.png"></image>
+        <text>选择文件</text>
+      </view>
+      <text class="tip">支持 PDF、Word 文档</text>
+    </view>
+
+    <!-- 文件预览区域 -->
+    <view class="file-preview" wx:if="{{fileInfo}}">
+      <view class="file-info">
+        <image src="/img/pdf.png" wx:if="{{fileInfo.type === 'pdf'}}"></image>
+        <image src="/img/txt.png" wx:else></image>
+        <text>{{fileInfo.name}}</text>
+      </view>
+      <view class="preview-content">{{previewContent}}</view>
+    </view>
+
+    <!-- 问答区域 -->
+    <view class="qa-section" wx:if="{{fileInfo}}">
+      <textarea 
+        class="input-area" 
+        placeholder="请输入您的问题"
+        value="{{userInput}}"
+        bindinput="onInput"
+        disabled="{{isLoading}}"
+      ></textarea>
+      <view 
+        class="send-btn {{isLoading || !userInput ? 'disabled' : ''}}" 
+        bindtap="sendQuestion"
+      >
+        <image src="/img/send.png"></image>
+      </view>
+    </view>
+  </view>
+</view>

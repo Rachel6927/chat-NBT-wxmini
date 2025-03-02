@@ -298,24 +298,50 @@ Page({
         }
       ];
 
+      // 根据文件类型选择合适的模型
+      const model = fileType && fileType.startsWith('image/') ? 
+        kimiConfig.models.image : kimiConfig.models.text;
+
       if (fileId) {
         const fileContent = await this.getFileContent(fileId);
+        if (fileType && fileType.startsWith('image/')) {
+          messages.push({
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: content
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: fileContent
+                }
+              }
+            ]
+          });
+        } else {
+          messages.push({
+            role: 'system',
+            content: `文件内容：${fileContent}`
+          });
+          messages.push({
+            role: 'user',
+            content: content
+          });
+        }
+      } else {
         messages.push({
-          role: 'system',
-          content: `文件内容：${fileContent}`
+          role: 'user',
+          content: content
         });
       }
-
-      messages.push({
-        role: 'user',
-        content: content
-      });
 
       const response = await wx.request({
         url: `${kimiConfig.baseUrl}/chat/completions`,
         method: 'POST',
         data: {
-          model: kimiConfig.model,
+          model: model,
           messages: messages,
           temperature: kimiConfig.temperature
         },

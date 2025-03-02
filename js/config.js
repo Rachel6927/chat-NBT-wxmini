@@ -50,13 +50,12 @@ const uploadConfig = {
 const kimiConfig = {
     apiKey: 'sk-cGB1pPSaLF8alrvHGtpdyESXPS0rky6H0VtQ0jVRE9K3FS98',
     baseUrl: 'https://api.moonshot.cn/v1',
-    model: 'moonshot-v1-8k-vision-preview',
+    models: {
+        text: 'moonshot-v1-32k',
+        image: 'moonshot-v1-8k-vision-preview'
+    },
     temperature: 0.3,
-    maxTokens: 2000,
-    vision: {
-        enabled: true,
-        allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/webp']
-    }
+    maxTokens: 2000
 };
 
 module.exports = {

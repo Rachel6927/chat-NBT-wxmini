@@ -1,0 +1,152 @@
+.file-qa-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #fff;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32rpx;
+  border-bottom: 1rpx solid #eee;
+}
+
+.title {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #333;
+}
+
+.close-btn {
+  width: 48rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-btn image {
+  width: 32rpx;
+  height: 32rpx;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 32rpx;
+  overflow-y: auto;
+}
+
+.file-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx 0;
+}
+
+.upload-btn {
+  width: 200rpx;
+  height: 200rpx;
+  border: 2rpx dashed #ddd;
+  border-radius: 16rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24rpx;
+}
+
+.upload-btn image {
+  width: 64rpx;
+  height: 64rpx;
+  margin-bottom: 16rpx;
+}
+
+.upload-btn text {
+  font-size: 28rpx;
+  color: #666;
+}
+
+.tip {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.file-preview {
+  background-color: #f8f8f8;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 32rpx;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.file-info image {
+  width: 48rpx;
+  height: 48rpx;
+  margin-right: 16rpx;
+}
+
+.file-info text {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.preview-content {
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.6;
+  max-height: 400rpx;
+  overflow-y: auto;
+}
+
+.qa-section {
+  display: flex;
+  align-items: flex-end;
+  margin-top: auto;
+  padding-top: 32rpx;
+  border-top: 1rpx solid #eee;
+}
+
+.input-area {
+  flex: 1;
+  height: 160rpx;
+  background-color: #f8f8f8;
+  border-radius: 16rpx;
+  padding: 16rpx;
+  font-size: 28rpx;
+  margin-right: 16rpx;
+}
+
+.send-btn {
+  width: 80rpx;
+  height: 80rpx;
+  background-color: #007AFF;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.send-btn.disabled {
+  background-color: #ccc;
+}
+
+.send-btn image {
+  width: 40rpx;
+  height: 40rpx;
+}

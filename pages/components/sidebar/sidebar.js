@@ -40,7 +40,6 @@ Component({
         desc: '用于完善用户资料',
         success: (res) => {
           this.setData({ userInfo: res.userInfo });
-          console.log(res.userInfo)
         },
         fail: (err) => {
           console.error('获取用户信息失败：', err);

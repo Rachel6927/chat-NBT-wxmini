@@ -33,7 +33,7 @@
               wx:elif="{{segment.type === 'image'}}"
               src="{{segment.url}}"
               mode="aspectFit"
-              class="message-image {{expandedFiles[index] ? 'expanded' : ''}}"
+              class="preview-image {{expandedFiles[index] ? 'expanded' : ''}}"
               bindtap="toggleFilePreview"
               data-index="{{index}}"
             />

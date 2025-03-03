@@ -10,9 +10,9 @@ Page({
     selectedFile: null,
     currentChatId: null,  // 当前会话ID
     uploadQueue: [],
-    isUploading: false
+    isUploading: false,
+    expandedFiles: []  // 用来记录哪些图片已经被放大
   },
-
 
   onLoad() {  
     this.checkLogin();
@@ -128,6 +128,18 @@ Page({
     });
   },
 
+  checkLogin() {
+    wx.getStorage({
+      key: 'userInfo',
+      success: (res) => {
+        this.setData({
+          userInfo: res.data,
+          isLoggedIn: true
+        });
+      }
+    });
+  },
+
   async loadChatHistory(chatHistoryId) {
     try {
       const db = wx.cloud.database();
@@ -144,6 +156,232 @@ Page({
     } catch (error) {
       console.error('加载会话失败:', error);
     }
+  },
+
+  async chooseDocument() {
+    try {
+      const networkRes = await wx.getNetworkType();
+      if (networkRes.networkType === 'none') {
+        wx.showToast({
+          title: '请检查网络连接',
+          icon: 'none'
+        });
+        return;
+      }
+
+      const fileRes = await wx.chooseMessageFile({
+        count: 1,
+        type: 'file',
+        extension: ['txt', 'png', 'jpg', 'jpeg', 'doc', 'docx', 'pdf']
+      });
+
+      if (!fileRes.tempFiles || !fileRes.tempFiles[0]) return;
+
+      const file = fileRes.tempFiles[0];
+      const fileType = file.name.split('.').pop().toLowerCase();
+      const fs = wx.getFileSystemManager();
+
+      try {
+        let content;
+        let segments;
+
+        // 根据文件类型进行不同处理
+        if (['png', 'jpg', 'jpeg'].includes(fileType)) {
+          // 处理图片
+          const base64 = fs.readFileSync(file.path, 'base64');
+          content = {
+            role: 'user',
+            content: [
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:image/${fileType};base64,${base64}`
+                }
+              }
+            ]
+          };
+          segments = [
+            {
+              type: 'image',
+              url: file.path
+            }
+          ];
+        } else if (fileType === 'txt') {
+          // 处理文本文件
+          const textContent = fs.readFileSync(file.path, 'utf8');
+          content = {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text:`这是一个文本文件，内容如下：\n${textContent}\n请你根据文本内容完成下列要求：`
+              }
+            ]
+          };
+          segments = [
+            {
+              type: 'file',
+              name: file.name,
+              size: this.formatFileSize(file.size),
+              content: textContent
+            }
+          ];
+        } else if (['doc', 'docx', 'pdf'].includes(fileType)) {
+          wx.showLoading({
+            title: '处理文件中...',
+            mask: true
+          });
+
+          try {
+            // 读取文件内容
+            const fileContent = fs.readFileSync(file.path, 'base64');
+            
+            // 构建表单数据
+            const formData = {
+              file: fileContent,
+              filename: file.name,
+              purpose: 'file-extract'
+            };
+
+            // 上传文件
+            const uploadRes = await new Promise((resolve, reject) => {
+              wx.uploadFile({
+                url: 'https://api.moonshot.cn/v1/files',
+                filePath: file.path,
+                name: 'file',
+                formData: {
+                  purpose: 'file-extract',
+                  filename: file.name
+                },
+                header: {
+                  'Authorization': `Bearer ${kimiConfig.apiKey}`,
+                  'Accept': 'application/json'
+                },
+                success: (res) => {
+                  if (res.statusCode === 200) {
+                    try {
+                      const result = JSON.parse(res.data);
+                      if (result.error) {
+                        reject(new Error(result.error.message || '文件上传失败'));
+                      } else {
+                        resolve(result);
+                      }
+                    } catch (e) {
+                      reject(new Error('解析响应失败：' + e.message));
+                    }
+                  } else if (res.statusCode === 401) {
+                    reject(new Error('API密钥无效或已过期'));
+                  } else if (res.statusCode === 413) {
+                    reject(new Error('文件大小超过服务器限制'));
+                  } else {
+                    reject(new Error(`文件上传失败：HTTP ${res.statusCode}`));
+                  }
+                },
+                fail: (err) => reject(new Error(err.errMsg || '网络请求失败'))
+              });
+            });
+
+            // 获取文件内容
+            const contentRes = await new Promise((resolve, reject) => {
+              wx.request({
+                url: `https://api.moonshot.cn/v1/files/${uploadRes.id}/content`,
+                method: 'GET',
+                header: {
+                  'Authorization': `Bearer ${kimiConfig.apiKey}`,
+                  'Accept': 'application/json'
+                },
+                success: (res) => {
+                  if (res.statusCode === 200) {
+                    if (res.data) {
+                      resolve(res.data);
+                    } else {
+                      reject(new Error('获取文件内容失败：响应数据为空'));
+                    }
+                  } else if (res.statusCode === 401) {
+                    reject(new Error('API密钥无效或已过期'));
+                  } else if (res.statusCode === 404) {
+                    reject(new Error('文件不存在或已被删除'));
+                  } else {
+                    reject(new Error(`获取文件内容失败：HTTP ${res.statusCode}`));
+                  }
+                },
+                fail: (err) => {
+                  console.error('请求失败:', err);
+                  reject(new Error('网络请求失败，请检查网络连接'));
+                }
+              });
+            });
+
+            if (!contentRes) {
+              throw new Error('获取文件内容失败：响应数据为空');
+            }
+            content = {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text:`我上传了一个 ${fileType.toUpperCase()} 文件，文件完整内容如下：\n${contentRes.text || contentRes.content || ''} \n 请你根据给出的文件内容完成下列要求：`
+                }
+              ]
+            };
+            // content = {
+            //   role: 'user',
+            //   content: `这是一个 ${fileType.toUpperCase()} 文件，内容如下：\n${contentRes.text || contentRes.content || ''} \n请你根据文本内容完成下列要求：`
+            // };
+
+            segments = [
+              {
+                type: 'file',
+                name: file.name,
+                size: this.formatFileSize(file.size),
+              }
+            ];
+
+          } catch (error) {
+            console.error('文件处理失败:', error);
+              wx.showToast({
+              title: error.message || '文件处理失败',
+              icon: 'none'
+              });
+            return;
+          } finally {
+              wx.hideLoading();
+          }
+        }  else {
+          throw new Error('不支持的文件类型');
+        }
+
+        // 设置选中的文件
+        this.setData({
+          selectedFile: {
+            ...file,
+            preview: ['png', 'jpg', 'jpeg'].includes(fileType) ? file.path : null,
+            formattedSize: this.formatFileSize(file.size),
+            type: fileType,
+            content: content,
+            segments: segments
+          }
+        });
+      } catch (error) {
+        console.error('处理文件失败:', error);
+        wx.showToast({
+          title: error.message || '处理文件失败',
+          icon: 'none'
+        });
+      }
+    } catch (error) {
+      console.error('选择文件失败:', error);
+      wx.showToast({
+        title: '选择文件失败',
+        icon: 'none'
+      });
+    }
+  },
+
+  removeSelectedFile() {
+    this.setData({
+      selectedFile: null
+    });
   },
 
   async sendMessage() {
@@ -173,11 +411,16 @@ Page({
           content: inputValue.trim()
         });
       }
-
       // 添加文件内容
-      if (selectedFile) {
+      if (selectedFile) {        
         userMessage.segments.push(...selectedFile.segments);
         userMessage.content = selectedFile.content;
+        userMessage.content.content.push(
+          {
+            type: 'text',
+            text: inputValue.trim()
+          }
+        )
       } else {
         userMessage.content = inputValue.trim();
       }
@@ -223,7 +466,6 @@ Page({
         this.scrollToBottom();
       });
       this.sendToServer(userMessage.content);
-
     } catch (error) {
       console.error('发送消息失败:', error);
       wx.showToast({
@@ -233,986 +475,9 @@ Page({
     }
   },
 
-  async uploadFileToKimi(filePath, fileType, fileName) {
-    const fs = wx.getFileSystemManager();
-    let content;
-    let messages = [
-      {
-        role: 'system',
-        content: '你是 Kimi，由 Moonshot AI 提供的人工智能助手。请帮助分析和理解用户上传的内容。'
-      }
-    ];
-
-    // 根据文件类型进行不同处理
-    if (fileType.endsWith('txt')) {
-      try {
-        content = fs.readFileSync(filePath, 'utf8');
-        messages.push({
-          role: 'user',
-          content: `这是一个文本文件 ${fileName}，内容如下：\n${content}`
-        });
-      } catch (error) {
-        throw new Error('读取文件失败，请重试');
-      }
-    } 
-    else if (['png', 'jpg', 'jpeg'].includes(fileType.toLowerCase())) {
-      try {
-        const base64 = fs.readFileSync(filePath, 'base64');
-        messages.push({
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: `这是一张图片 ${fileName}，请帮我分析图片内容。`
-            },
-            {
-              type: 'image',
-              image_url: {
-                url: `data:image/${fileType};base64,${base64}`
-              }
-            }
-          ]
-        });
-      } catch (error) {
-        throw new Error('读取图片失败，请重试');
-      }
-    }
-    else if (['doc', 'docx', 'pdf'].includes(fileType)) {
-      try {
-        // 使用现有的 uploadFileToKimi 方法处理文件
-        const response = await this.uploadFileToKimi(filePath, fileType, fileName);
-        
-        content = {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: `这是一个 ${fileType.toUpperCase()} 文件 ${fileName}，请帮我分析文件内容。`
-            },
-            {
-              type: 'text',
-              text: response // 文件内容
-            }
-          ]
-        };
-
-        segments = [
-          {
-            type: 'text',
-            content: `发送了一个 ${fileType.toUpperCase()} 文件`
-          },
-          {
-            type: 'file',
-            name: fileName,
-            size: this.formatFileSize(fs.statSync(filePath).size),
-            type: fileType
-          }
-        ];
-
-      } catch (error) {
-        console.error('文件处理失败:', error);
-        wx.showToast({
-          title: error.message || '文件处理失败',
-          icon: 'none'
-        });
-        return;
-      }
-    }
-    else {
-      throw new Error('暂不支持该文件类型，请使用文本或图片文件');
-    }
-
-    // API 请求部分
-    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const maxRetries = 3;
-    let lastError = null;
-
-    for (let i = 0; i < maxRetries; i++) {
-      try {
-        if (i > 0) {
-          await delay(2000);
-        }
-
-        const response = await wx.request({
-          url: 'https://api.moonshot.cn/v1/chat/completions',
-          method: 'POST',
-          data: {
-            model: 'moonshot-v1-8k-vision-preview',
-            messages: messages.map(msg => {
-              if (msg.content && typeof msg.content === 'string' && msg.content.startsWith('data:image')) {
-                return {
-                  role: msg.role,
-                  content: [
-                    {
-                      type: 'image_url',
-                      image_url: {
-                        url: msg.content
-                      }
-                    },
-                    {
-                      type: 'text',
-                      text: '请描述这个图片'
-                    }
-                  ]
-                };
-              }
-              return msg;
-            }),
-            temperature: 0.3,
-            stream: false
-          },
-          header: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer sk-cGB1pPSaLF8alrvHGtpdyESXPS0rky6H0VtQ0jVRE9K3FS98'
-          }
-        });
-
-        if (!response.statusCode) {
-          throw new Error('网络请求失败');
-        }
-
-        if (response.statusCode === 429) {
-          await delay(3000);
-          continue;
-        }
-
-        if (response.statusCode !== 200) {
-          throw new Error(`API请求失败: ${response.data?.error?.message || '未知错误'}`);
-        }
-
-        const result = response.data;
-        if (!result.choices?.[0]?.message?.content) {
-          throw new Error('API 响应格式不正确');
-        }
-
-        return result.choices[0].message.content;
-
-      } catch (error) {
-        lastError = error;
-        if (i < maxRetries - 1) {
-          continue;
-        }
-      }
-    }
-
-    throw lastError || new Error('请求失败，请稍后重试');
-  },
-
-  async handleFileUpload() {
-    try {
-      // 先检查网络状态
-      const networkRes = await wx.getNetworkType();
-        if (networkRes.networkType === 'none') {
-          wx.showToast({
-          title: '无网络连接',
-          icon: 'none',
-          duration: 2000
-          });
-          return;
-        }
-
-      // 选择文件
-      const fileRes = await wx.chooseMessageFile({
-          count: 1,
-        type: 'file'
-      });
-
-      if (!fileRes.tempFiles || !fileRes.tempFiles[0]) {
-        return; // 用户取消选择文件，直接返回
-      }
-
-      const file = fileRes.tempFiles[0];
-      const fileType = file.name.split('.').pop().toLowerCase();
-
-      // 检查文件类型
-      if (['png', 'jpg', 'jpeg'].includes(fileType)) {
-              wx.showToast({
-          title: '暂不支持图片处理',
-          icon: 'none',
-          duration: 2000
-              });
-              return;
-            }
-
-      // 显示加载中
-            wx.showLoading({
-              title: '处理中...',
-        mask: true // 添加遮罩防止重复操作
-            });
-
-            try {
-        const response = await this.uploadFileToKimi(file.path, fileType, file.name);
-        
-        // 更新消息列表
-        const fileMessage = {
-          role: 'user',
-          content: `[${file.name}]`,
-          segments: [{
-            type: 'file',
-            content: file.name
-          }],
-          avatar: '/img/user-avatar.png',
-          fileInfo: {
-            name: file.name,
-            type: fileType,
-            size: file.size
-          }
-        };
-
-        this.setData({
-          messages: [...this.data.messages, fileMessage],
-          selectedFile: null
-        });
-
-        // 发送到服务器并处理响应
-        await this.sendToServer(response);
-
-      } finally {
-        // 确保在内部 try-catch 中也会隐藏 loading
-        wx.hideLoading();
-      }
-
-    } catch (error) {
-      // 外部错误处理
-      wx.showToast({
-        title: error.message || '文件处理失败',
-        icon: 'none',
-        duration: 2000
-      });
-      wx.hideLoading(); // 确保在外部错误时也会隐藏 loading
-    }
-  },
-
-  async chooseDocument() {
-    try {
-                  const networkRes = await wx.getNetworkType();
-                  if (networkRes.networkType === 'none') {
-        wx.showToast({
-          title: '请检查网络连接',
-          icon: 'none'
-        });
-        return;
-      }
-
-      const fileRes = await wx.chooseMessageFile({
-        count: 1,
-        type: 'file',
-        extension: ['txt', 'png', 'jpg', 'jpeg', 'doc', 'docx', 'pdf']
-      });
-
-      if (!fileRes.tempFiles || !fileRes.tempFiles[0]) return;
-
-      const file = fileRes.tempFiles[0];
-      const fileType = file.name.split('.').pop().toLowerCase();
-      const fs = wx.getFileSystemManager();
-
-      try {
-        let content;
-        let segments;
-
-        // 根据文件类型进行不同处理
-        if (['png', 'jpg', 'jpeg'].includes(fileType)) {
-          // 处理图片
-          const base64 = fs.readFileSync(file.path, 'base64');
-          content = {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: `这是一张图片 ${file.name}，请帮我分析图片内容。`
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:image/${fileType};base64,${base64}`
-                }
-              }
-            ]
-          };
-          segments = [
-            {
-              type: 'text',
-              content: '发送了一张图片'
-            },
-            {
-              type: 'image',
-              url: file.path
-            }
-          ];
-        } else if (fileType === 'txt') {
-          // 处理文本文件
-          const textContent = fs.readFileSync(file.path, 'utf8');
-          content = {
-            role: 'user',
-            content: `这是一个文本文件，内容如下：\n${textContent}`
-          };
-          segments = [
-            {
-              type: 'text',
-              content: '发送了一个文本文件'
-            },
-            {
-              type: 'file',
-              name: file.name,
-              size: this.formatFileSize(file.size),
-              content: textContent
-            }
-          ];
-        } else if (['doc', 'docx', 'pdf'].includes(fileType)) {
-          wx.showLoading({
-            title: '处理文件中...',
-            mask: true
-          });
-
-          try {
-            // 读取文件内容
-            const fileContent = fs.readFileSync(file.path, 'base64');
-            
-            // 构建表单数据
-            const formData = {
-              file: fileContent,
-              filename: file.name,
-              purpose: 'file-extract'
-            };
-
-            // 上传文件
-            const uploadRes = await new Promise((resolve, reject) => {
-              wx.request({
-                url: 'https://api.moonshot.cn/v1/files',
-                method: 'POST',
-                header: {
-                  'Content-Type': 'multipart/form-data',
-                  'Authorization': 'Bearer sk-cGB1pPSaLF8alrvHGtpdyESXPS0rky6H0VtQ0jVRE9K3FS98'
-                },
-                data: formData,
-                success: (res) => {
-                  if (res.statusCode === 200 && res.data && res.data.id) {
-                    resolve(res.data);
-                  } else {
-                    reject(new Error('文件上传失败'));
-                  }
-                },
-                fail: (err) => reject(new Error(err.errMsg || '上传失败'))
-              });
-            });
-
-            // 获取文件内容
-            const contentRes = await wx.request({
-              url: `https://api.moonshot.cn/v1/files/${uploadRes.id}/content`,
-              method: 'GET',
-              header: {
-                'Authorization': 'Bearer sk-cGB1pPSaLF8alrvHGtpdyESXPS0rky6H0VtQ0jVRE9K3FS98'
-              }
-            });
-
-            if (!contentRes.data || !contentRes.data.text) {
-              throw new Error('获取文件内容失败');
-            }
-
-            content = {
-              role: 'user',
-              content: `这是一个 ${fileType.toUpperCase()} 文件，内容如下：\n${contentRes.data.text}`
-            };
-
-            segments = [
-              {
-                type: 'text',
-                content: `发送了一个 ${fileType.toUpperCase()} 文件`
-              },
-              {
-                type: 'file',
-                name: file.name,
-                size: this.formatFileSize(file.size),
-                type: fileType
-              }
-            ];
-
-          } catch (error) {
-            console.error('文件处理失败:', error);
-              wx.showToast({
-              title: error.message || '文件处理失败',
-              icon: 'none'
-              });
-            return;
-          } finally {
-              wx.hideLoading();
-          }
-        } else {
-          throw new Error('不支持的文件类型');
-        }
-
-        // 设置选中的文件
-        this.setData({
-          selectedFile: {
-            ...file,
-            preview: ['png', 'jpg', 'jpeg'].includes(fileType) ? file.path : null,
-            formattedSize: this.formatFileSize(file.size),
-            type: fileType,
-            content: content,
-            segments: segments
-          }
-        });
-
-      } catch (error) {
-        console.error('处理文件失败:', error);
-              wx.showToast({
-                title: error.message || '处理文件失败',
-          icon: 'none'
-              });
-            }
-    } catch (error) {
-            console.error('选择文件失败:', error);
-            wx.showToast({
-              title: '选择文件失败',
-              icon: 'none'
-            });
-          }
-  },
-
-  // 修改文件上传方法
-  async uploadFileToServer(file) {
-    // 添加到队列
-    const uploadPromise = new Promise((resolve, reject) => {
-      this.data.uploadQueue.push({
-        file,
-        resolve,
-        reject
-      });
-    });
-
-    // 如果当前没有上传任务，开始处理队列
-    if (!this.data.isUploading) {
-      this.processUploadQueue();
-    }
-
-    return uploadPromise;
-  },
-
-  // 处理上传队列
-  async processUploadQueue() {
-    if (this.data.uploadQueue.length === 0 || this.data.isUploading) {
-      return;
-    }
-
-    this.setData({ isUploading: true });
-
-    try {
-      const task = this.data.uploadQueue[0];
-      
-      wx.showLoading({
-        title: '处理文件中...',
-        mask: true
-      });
-
-      // 上传文件
-      const uploadResult = await new Promise((resolve, reject) => {
-        const uploadTask = wx.uploadFile({
-          url: 'https://api.moonshot.cn/v1/files',
-          filePath: task.file.path,
-          name: 'file',
-          formData: {
-            purpose: 'file-extract'
-          },
-          header: {
-            'Authorization': `Bearer ${kimiConfig.apikey}`
-          },
-          success: (res) => {
-            if (res.statusCode === 200) {
-              try {
-                resolve(JSON.parse(res.data));
-              } catch (e) {
-                reject(new Error('解析响应失败'));
-              }
-            } else {
-              reject(new Error('文件上传失败'));
-            }
-          },
-          fail: reject
-        });
-
-        // 监听上传进度
-        uploadTask.onProgressUpdate((res) => {
-          console.log('上传进度', res.progress);
-        });
-      });
-
-      if (!uploadResult.id) {
-        throw new Error('文件上传失败');
-      }
-
-      // 获取文件内容
-      const contentResult = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `https://api.moonshot.cn/v1/files/${uploadResult.id}/content`,
-          method: 'GET',
-        header: {
-            'Authorization': `Bearer ${kimiConfig.apikey}`
-          },
-          success: (res) => {
-            if (res.statusCode === 200) {
-              resolve(res.data);
-            } else {
-              reject(new Error('获取文件内容失败'));
-            }
-          },
-          fail: reject
-        });
-      });
-
-      if (!contentResult.text) {
-        throw new Error('获取文件内容失败');
-      }
-
-      // 成功处理当前任务
-      task.resolve(contentResult.text);
-
-    } catch (error) {
-      // 处理错误
-      this.data.uploadQueue[0].reject(error);
-    } finally {
-      wx.hideLoading();
-      
-      // 移除已处理的任务
-      this.data.uploadQueue.shift();
-      
-      // 重置上传状态
-      this.setData({ isUploading: false });
-
-      // 如果队列中还有任务，继续处理
-      if (this.data.uploadQueue.length > 0) {
-        setTimeout(() => {
-          this.processUploadQueue();
-        }, 500); // 添加延时，避免过快发起新请求
-      }
-    }
-  },
-
-  // 在页面卸载时清空队列
-  onUnload() {
-    this.setData({
-      uploadQueue: [],
-      isUploading: false
-    });
-  },
-  // 添加文件大小格式化方法
-  formatFileSize(size) {
-    if (size < 1024) {
-      return size + 'B';
-    } else if (size < 1024 * 1024) {
-      return (size / 1024).toFixed(1) + 'KB';
-    } else {
-      return (size / (1024 * 1024)).toFixed(1) + 'MB';
-    }
-  },
-
-  removeSelectedFile() {
-    this.setData({
-      selectedFile: null
-    });
-  },
-
-  async callKimiAPI(content, fileType, fileId) {
-    try {
-      let messages = [
-        {
-          role: 'system',
-          content: '你是 Kimi，由 Moonshot AI 提供的人工智能助手...'
-        }
-      ];
-
-      if (fileId) {
-        const fileContent = await this.getFileContent(fileId);
-        messages.push({
-          role: 'system',
-          content: `文件内容：${fileContent}`
-        });
-      }
-
-      messages.push({
-        role: 'user',
-        content: content
-      });
-
-      const response = await wx.request({
-        url: `${kimiConfig.baseUrl}/chat/completions`,
-        method: 'POST',
-        data: {
-          model: kimiConfig.model,
-          messages: messages,
-          temperature: kimiConfig.temperature
-        },
-        header: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${kimiConfig.apiKey}`
-        }
-      });
-
-      if (!response || !response.statusCode) {
-        throw new Error('网络请求失败，请检查网络连接');
-      }
-
-      if (response.statusCode !== 200) {
-        throw new Error(`API请求失败：HTTP ${response.statusCode}`);
-      }
-
-      if (!response.data || !response.data.choices || !response.data.choices[0]) {
-        throw new Error('API返回数据格式错误');
-      }
-
-      return response.data.choices[0].message.content;
-    } catch (error) {
-      console.error('Kimi API错误:', error);
-      throw new Error(`Kimi API错误: ${error.message || '未知错误'}`);
-    }
-  },
-
-  async getFileContent(fileId) {
-    try {
-      const response = await wx.request({
-        url: `${kimiConfig.baseUrl}/files/${fileId}/content`,
-        method: 'GET',
-        header: {
-          'Authorization': `Bearer ${kimiConfig.apiKey}`
-        }
-      });
-
-      if (response.statusCode === 200) {
-        return response.data.content;
-      } else {
-        throw new Error('获取文件内容失败');
-      }
-    } catch (error) {
-      console.error('获取文件内容错误:', error);
-      throw error;
-    }
-  },
-
-  chooseImage() {
-    // 检查网络状态
-    wx.getNetworkType({
-      success: async (networkRes) => {
-        if (networkRes.networkType === 'none') {
-          wx.showToast({
-            title: '请检查网络连接',
-            icon: 'none'
-          });
-          return;
-        }
-
-        try {
-          const res = await wx.chooseImage({
-            count: 1,
-            sizeType: ['compressed'],
-            sourceType: ['album', 'camera']
-          });
-
-          const tempFilePath = res.tempFilePaths[0];
-          
-          // 获取图片信息
-          const imageInfo = await wx.getImageInfo({
-            src: tempFilePath
-          });
-
-          // 检查文件大小是否超过10MB
-          const fileInfo = await wx.getFileInfo({
-            filePath: tempFilePath
-          });
-
-          let finalFilePath = tempFilePath;
-          
-          // 如果图片大于2MB，进行压缩
-          if (fileInfo.size > 2 * 1024 * 1024) {
-            const compressRes = await wx.compressImage({
-              src: tempFilePath,
-              quality: 80
-            });
-            finalFilePath = compressRes.tempFilePath;
-          }
-          
-          // 上传图片到云存储，添加超时处理
-          const fileName = `image_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;  // 使用固定长度随机字符串
-          const cloudPath = `images/${fileName}.jpg`;  // 统一使用jpg格式，确保路径合法
-          
-          const uploadPromise = wx.cloud.uploadFile({
-            cloudPath: cloudPath,
-            filePath: finalFilePath,
-            timeout: 30000 // 设置30秒超时
-          });
-
-          // 创建超时Promise
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => {
-              reject(new Error('上传超时，请重试'));
-            }, 30000);
-          });
-
-          // 使用Promise.race进行超时控制
-          const uploadResult = await Promise.race([uploadPromise, timeoutPromise]);
-
-          if (!uploadResult || !uploadResult.fileID) {
-            throw new Error('文件上传失败');
-          }
-
-          // 获取图片临时链接
-          const tempUrlRes = await wx.cloud.getTempFileURL({
-            fileList: [uploadResult.fileID]
-          });
-
-          if (!tempUrlRes.fileList || !tempUrlRes.fileList[0].tempFileURL) {
-            throw new Error('获取图片链接失败');
-          }
-
-          const imageUrl = tempUrlRes.fileList[0].tempFileURL;
-          const imageMessage = {
-            type: 'user',
-            content: '[图片]',
-            avatar: '/img/user-avatar.png',
-            imageUrl: imageUrl,
-            imageType: 'image/jpeg'
-          };
-
-          this.setData({
-            messages: [...this.data.messages, imageMessage]
-          });
-
-          // 直接发送图片消息给服务器
-          this.sendToServer({
-            text: '请分析这张图片',
-            image: {
-              url: imageUrl,
-              type: 'image/jpeg'
-            }
-          });
-        } catch (error) {
-          console.error('图片处理失败:', error);
-          let errorMessage = '上传失败，请重试';
-          
-          if (error.message.includes('timeout') || error.message.includes('超时')) {
-            errorMessage = '上传超时，请检查网络';
-          } else if (error.errMsg && error.errMsg.includes('chooseImage:fail')) {
-            errorMessage = '选择图片失败';
-          } else if (error.errMsg && error.errMsg.includes('uploadFile:fail')) {
-            errorMessage = '图片上传失败，请重试';
-          }
-
-          wx.showToast({
-            title: errorMessage,
-            icon: 'none',
-            duration: 2000
-          });
-        }
-      },
-      fail: () => {
-        wx.showToast({
-          title: '网络状态获取失败',
-          icon: 'none'
-        });
-      }
-    });
-  },
-
-  startRecord() {
-    if (this.data.recording) {
-      this.data.recorderManager.stop();
-      this.setData({ recording: false });
-      return;
-    }
-
-    // 获取录音权限
-    wx.authorize({
-      scope: 'scope.record',
-      success: () => {
-        this.setData({ recording: true });
-        this.data.recorderManager.start({
-          duration: 60000, // 最长录音时间，单位ms
-          sampleRate: 16000,
-          numberOfChannels: 1,
-          encodeBitRate: 48000,
-          format: 'mp3'
-        });
-      },
-      fail: () => {
-        wx.showToast({
-          title: '请授权录音权限',
-          icon: 'none'
-        });
-      }
-    });
-  },
-
-  toggleSidebar() {
-    this.setData({
-      sidebarOpen: !this.data.sidebarOpen
-    });
-  },
-
-  copyMessage(e) {
-    const message = e.currentTarget.dataset.message;
-    let content = message.content;
-
-    // 如果消息包含segments，则拼接所有文本内容
-    if (message.segments && message.segments.length > 0) {
-      content = message.segments
-        .map(segment => segment.content)
-        .join('\n');
-    }
-
-    // 如果消息包含代码块，确保代码块内容也被复制
-    if (message.codeBlocks && message.codeBlocks.length > 0) {
-      content = message.codeBlocks
-        .map(block => `${block.language}:\n${block.code}`)
-        .join('\n\n');
-    }
-
-    wx.setClipboardData({
-      data: content,
-      success: () => {
-        wx.showToast({
-          title: '复制成功',
-          icon: 'success'
-        });
-      },
-      fail: () => {
-        wx.showToast({
-          title: '复制失败',
-          icon: 'none'
-        });
-      }
-    });
-  },
-
-  checkLogin() {
-    wx.getStorage({
-      key: 'userInfo',
-      success: (res) => {
-        this.setData({
-          userInfo: res.data,
-          isLoggedIn: true
-        });
-      }
-    });
-  },
-
-  async login() {
-    // 检查是否已经登录
-    if (this.data.isLoggedIn) {
-      wx.showToast({
-        title: '您已经登录',
-        icon: 'success'
-      });
-      return;
-    }
-
-    // 检查云环境是否初始化
-    if (!wx.cloud) {
-      wx.showToast({
-        title: '请使用 2.2.3 或以上的基础库',
-        icon: 'none'
-      });
-      return;
-    }
-
-    try {
-      // 先获取用户信息
-      const userProfileRes = await wx.getUserProfile({
-        desc: '用于完善会员资料',
-        lang: 'zh_CN'
-      });
-
-      // 获取登录凭证
-      const loginRes = await wx.login();
-      
-      if (!loginRes.code) {
-        throw new Error('获取登录凭证失败');
-      }
-
-      // 调用云函数进行登录
-      const cloudLoginRes = await wx.cloud.callFunction({
-        name: 'login',
-        data: {
-          code: loginRes.code,
-          userInfo: userProfileRes.userInfo,
-          appId: wxConfig.appId
-        }
-      });
-
-      if (!cloudLoginRes.result || !cloudLoginRes.result.openid) {
-        throw new Error('登录失败');
-      }
-
-      // 保存用户信息和登录态
-      const userInfo = userProfileRes.userInfo;
-      wx.setStorageSync('userInfo', userInfo);
-      wx.setStorageSync('openid', cloudLoginRes.result.openid);
-      
-      this.setData({
-        userInfo: userInfo,
-        isLoggedIn: true
-      });
-
-      wx.showToast({
-        title: '登录成功',
-        icon: 'success'
-      });
-    } catch (error) {
-      console.error('登录失败:', error);
-      let errorMessage = '登录失败，请重试';
-      
-      if (error.errMsg && error.errMsg.includes('getUserProfile:fail auth deny')) {
-        errorMessage = '您已拒绝授权，部分功能可能无法使用';
-      }
-      
-      wx.showToast({
-        title: errorMessage,
-        icon: 'none',
-        duration: 2000
-      });
-    }
-  },
-  chooseFile() {
-    this.chooseDocument();
-  },
-
-  previewImage(e) {
-    const url = e.currentTarget.dataset.url;
-    wx.previewImage({
-      urls: [url],
-      current: url
-    });
-  },
-
-  openPDF(e) {
-    const url = e.currentTarget.dataset.url;
-    wx.downloadFile({
-      url: url,
-      success: (res) => {
-        const filePath = res.tempFilePath;
-        wx.openDocument({
-          filePath: filePath,
-          success: () => {
-            console.log('打开PDF成功');
-          },
-          fail: () => {
-            wx.showToast({
-              title: '打开PDF失败',
-              icon: 'none'
-            });
-          }
-        });
-      },
-      fail: () => {
-        wx.showToast({
-          title: '下载PDF失败',
-          icon: 'none'
-        });
-      }
-    });
-  },
-
   async sendToServer(content) {
     const messages = this.data.messages;
     const messageIndex = messages.length;
-
     messages.push({
       role: 'assistant',
       content: '',
@@ -1221,51 +486,37 @@ Page({
     });
 
     this.setData({ messages });
-
-  // 判断是否是图片消息并构建正确的消息格式
-  let requestContent;
-  if (typeof content === 'object' && content.image) {
-    requestContent = [
-      {
-        type: 'image_url',
-        image_url: {
-          url: content.image.url
+    // 判断是否是图片消息并构建正确的消息格式
+    let requestContent;
+    if (typeof content === 'object' && Array.isArray(content.content)) {
+      // 处理已经是数组格式的消息
+      requestContent = content.content;
+    } else {
+      requestContent = [
+        {
+          type: 'text',
+          text: typeof content === 'string' ? content : JSON.stringify(content)
         }
-      },
-      {
-        type: 'text',
-        text: content.text || '请分析这张图片'
-      }
-    ];
-  } else if (typeof content === 'object' && Array.isArray(content.content)) {
-    // 处理已经是数组格式的消息
-    requestContent = content.content;
-  } else {
-    requestContent = [
-      {
-        type: 'text',
-        text: typeof content === 'string' ? content : JSON.stringify(content)
-      }
-    ];
-  }
-  const requestData = {
-    model: 'moonshot-v1-8k-vision-preview',
-    messages: [
-      {
-        role: 'system',
-        content: '你是 Kimi，由 Moonshot AI 提供的人工智能助手。'
-      },
-      {
-        role: 'user',
-        content: requestContent
-      }
-    ],
-    temperature: 0.3,
-    stream: true
-  };
+      ];
+    }
+    const requestData = {
+      model: 'moonshot-v1-8k-vision-preview',
+      messages: [
+        {
+          role: 'system',
+          content: '你是 Kimi，由 Moonshot AI 提供的人工智能助手。'
+        },
+        {
+          role: 'user',
+          content: requestContent
+        }
+      ],
+      temperature: 0.3,
+      stream: true
+    };
 
-  // 打印请求数据以便调试
-  console.log('Request data:', JSON.stringify(requestData, null, 2));
+    // 打印请求数据以便调试
+    // console.log('Request data:', JSON.stringify(requestData, null, 2));
 
     wx.request({
       url: 'https://api.moonshot.cn/v1/chat/completions',
@@ -1370,6 +621,24 @@ Page({
     });
   },
 
+  // 在页面卸载时清空队列
+  onUnload() {
+    this.setData({
+      uploadQueue: [],
+      isUploading: false
+    });
+  },
+  // 添加文件大小格式化方法
+  formatFileSize(size) {
+    if (size < 1024) {
+      return size + 'B';
+    } else if (size < 1024 * 1024) {
+      return (size / 1024).toFixed(1) + 'KB';
+    } else {
+      return (size / (1024 * 1024)).toFixed(1) + 'MB';
+    }
+  },
+  // 处理消息输出
   processMessage(content) {
     // 处理消息中的代码块
     const codeBlockRegex = /```(.*?)\n([\s\S]*?)```/g;
@@ -1405,17 +674,69 @@ Page({
     }
     return segments;
   },
+  // 开始录音
+  startRecord() {
+    if (this.data.recording) {
+      this.data.recorderManager.stop();
+      this.setData({ recording: false });
+      return;
+    }
 
-  // 在接收到消息响应时调用
-  handleResponse(response) {
-    const segments = this.processMessage(response.content);
-    const messages = this.data.messages;
-    messages.push({
-      role: 'assistant',
-      segments: segments
+    // 获取录音权限
+    wx.authorize({
+      scope: 'scope.record',
+      success: () => {
+        this.setData({ recording: true });
+        this.data.recorderManager.start({
+          duration: 60000, // 最长录音时间，单位ms
+          sampleRate: 16000,
+          numberOfChannels: 1,
+          encodeBitRate: 48000,
+          format: 'mp3'
+        });
+      },
+      fail: () => {
+        wx.showToast({
+          title: '请授权录音权限',
+          icon: 'none'
+        });
+      }
     });
-    
-    this.setData({ messages });
+  },
+
+  copyMessage(e) {
+    const message = e.currentTarget.dataset.message;
+    let content = message.content;
+
+    // 如果消息包含segments，则拼接所有文本内容
+    if (message.segments && message.segments.length > 0) {
+      content = message.segments
+        .map(segment => segment.content)
+        .join('\n');
+    }
+
+    // 如果消息包含代码块，确保代码块内容也被复制
+    if (message.codeBlocks && message.codeBlocks.length > 0) {
+      content = message.codeBlocks
+        .map(block => `${block.language}:\n${block.code}`)
+        .join('\n\n');
+    }
+
+    wx.setClipboardData({
+      data: content,
+      success: () => {
+        wx.showToast({
+          title: '复制成功',
+          icon: 'success'
+        });
+      },
+      fail: () => {
+        wx.showToast({
+          title: '复制失败',
+          icon: 'none'
+        });
+      }
+    });
   },
 
   copyCode(e) {
@@ -1447,15 +768,21 @@ Page({
         .exec();
       },50)
   },
+
   // 切换文件预览大小
   toggleFilePreview(e) {
     const index = e.currentTarget.dataset.index;
     const expandedFiles = { ...this.data.expandedFiles };
     expandedFiles[index] = !expandedFiles[index];
-  
+    console.log(expandedFiles)
     this.setData({
       expandedFiles
     });
-  }
+  },
   
+  toggleSidebar() {
+    this.setData({
+      sidebarOpen: !this.data.sidebarOpen
+    });
+  },
 })

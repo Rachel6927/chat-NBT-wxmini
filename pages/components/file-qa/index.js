@@ -100,39 +100,21 @@ Component({
         }
 
         // 获取文件内容
-        const contentRes = await new Promise((resolve, reject) => {
-          wx.request({
-            url: `${this.data.baseUrl}/files/${responseData.id}/content`,
-            method: 'GET',
-            header: {
-              'Authorization': `Bearer ${this.data.apiKey}`,
-              'Accept': 'application/json'
-            },
-            success: (res) => {
-              if (res.statusCode === 200 && res.data) {
-                // 兼容不同的响应格式
-                const text = res.data.text || res.data.content;
-                if (text) {
-                  resolve({ data: { text } });
-                } else if (res.data.error) {
-                  reject(new Error('获取文件内容失败：' + res.data.error.message));
-                } else {
-                  reject(new Error('获取文件内容失败：响应数据格式不正确'));
-                }
-              } else if (res.statusCode === 401) {
-                reject(new Error('API密钥无效或已过期'));
-              } else if (res.statusCode === 404) {
-                reject(new Error('文件不存在或已被删除'));
-              } else {
-                reject(new Error('获取文件内容失败：' + (res.data?.error?.message || '未知错误')));
-              }
-            },
-            fail: (err) => reject(new Error(err.errMsg || '网络请求失败'))
-          });
+        const contentRes = await wx.request({
+          url: `${this.data.baseUrl}/files/${responseData.id}/content`,
+          method: 'GET',
+          header: {
+            'Authorization': `Bearer ${this.data.apiKey}`,
+            'Accept': 'application/json'
+          }
         });
 
-        if (!contentRes.data?.text) {
-          throw new Error('获取文件内容失败：未获取到文本内容');
+        if (contentRes.statusCode === 401) {
+          throw new Error('API密钥无效或已过期');
+        } else if (contentRes.statusCode === 404) {
+          throw new Error('文件不存在或已被删除');
+        } else if (contentRes.statusCode !== 200 || !contentRes.data?.text) {
+          throw new Error('获取文件内容失败：' + (contentRes.data?.error?.message || '未知错误'));
         }
 
         this.setData({

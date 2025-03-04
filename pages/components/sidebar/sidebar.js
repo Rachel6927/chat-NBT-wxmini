@@ -71,12 +71,10 @@ Component({
             ...item,
             updateTime: this.formatTime(new Date(item.updateTime)) // 格式化时间
         }));
-
         this.setData({
           chatHistory: this.data.chatHistory.concat(formattedChatHistory),
         });
-      } catch (error) {
-        
+      } catch (error) {        
         wx.showToast({
           title: '加载失败，请重试',
           icon: 'none'
@@ -121,20 +119,25 @@ Component({
               success: res => {
                 wx.showToast({
                   title: '删除成功',
-                })
-                this.loadChatHistory()//删除成功重新加载
+                });
+                const openid = getApp().globalData.openid;     
+                this.loadChatHistory(openid) //删除成功重新加载
+                const page = this.getPageInstance();
+                page.ifDelChat(chatHistoryId);
               }, fail: err => {
                 wx.showToast({
                   title: '删除失败',
                 })
               }        
-            })
+            })     
           }
         }
       })
     },
 
     clearHistory() {
+      const app = getApp();
+      const openid = app.globalData.openid;  
       wx.showModal({
         title: '提示',
         content: '确定要清除所有历史记录吗？',
@@ -143,10 +146,12 @@ Component({
             this.setData({ chatHistory: [] });
             const db = wx.cloud.database();
             db.collection(cloudConfig.dataBase).where({
-              all:null,   
+              _openid:openid  
             }).remove();
             this.triggerEvent('clear');
           }
+          const page = this.getPageInstance();
+          page.createNewChat()
         }
       });
     },

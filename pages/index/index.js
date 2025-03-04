@@ -11,17 +11,42 @@ Page({
     currentChatId: null,  // 当前会话ID
     uploadQueue: [],
     isUploading: false,
-    expandedFiles: []  // 用来记录哪些图片已经被放大
+    expandedFiles: false,  // 用来记录是否有图片被放大
+    expandedImageSrc: "",  // 放大的图片路径
+    showOverlay: false,  // 是否显示遮罩层
+    screenWidth: 0,  // 屏幕宽度
+    screenHeight: 0,  // 屏幕高度
+    imageWidth: 0,       // 放大后的图片宽度
+    imageHeight: 0,      // 放大后的图片高度
+    version:0 // 系统版本
   },
 
   onLoad() {  
+    const systemInfo = wx.getSystemInfoSync();  // 获取系统信息
+    const version = systemInfo.SDKVersion;      // 获取基础库版本
+
     this.checkLogin();
     this.initData();
     // 初始化录音管理器
     this.setData({
-      recorderManager: wx.getRecorderManager()
+      recorderManager: wx.getRecorderManager(),
+      version:version
     });
     this.initRecorderManager();
+    
+    // 如果基础库版本 >= 2.20.1，使用 wx.getWindowInfo() 获取屏幕信息，否则使用 wx.getSystemInfoSync()
+    if (version >= '2.20.1') {
+      const windowInfo = wx.getWindowInfo();
+      this.setData({
+        screenWidth: windowInfo.screenWidth,
+        screenHeight: windowInfo.screenHeight,
+      });
+    } else {
+      this.setData({
+        screenWidth: systemInfo.screenWidth,
+        screenHeight: systemInfo.screenHeight,
+      });
+    }
   },
 
   createNewChat() {
@@ -32,6 +57,12 @@ Page({
           recorderManager: wx.getRecorderManager()
         });
         this.initRecorderManager();
+  },
+
+  ifDelChat(chatHistoryId){
+    if (this.data.currentChatId==chatHistoryId){
+      this.createNewChat();
+    }
   },
 
   initData() {
@@ -771,13 +802,70 @@ Page({
 
   // 切换文件预览大小
   toggleFilePreview(e) {
-    const index = e.currentTarget.dataset.index;
-    const expandedFiles = { ...this.data.expandedFiles };
-    expandedFiles[index] = !expandedFiles[index];
-    console.log(expandedFiles)
-    this.setData({
-      expandedFiles
-    });
+    const expandedFiles = this.data.expandedFiles;
+    const url = e.currentTarget.dataset.src; 
+     // 如果基础库版本  使用 wx.createImage()
+     if (this.data.version>= '2.7.0') {
+      const image = wx.createImage();
+      image.src = url;
+      image.onload = () => {
+        let imgWidth = image.width;
+        let imgHeight = image.height;
+        let imageWidth = this.data.screenWidth;
+        let imageHeight = (imgHeight / imgWidth) * imageWidth;
+    
+        if (imageHeight > this.data.screenHeight) {
+          imageHeight = this.data.screenHeight;
+          imageWidth = (imgWidth / imgHeight) * imageHeight;
+        }
+        this.setData({
+          imageWidth: imageWidth,
+          imageHeight: imageHeight,
+        });
+      };
+      image.onerror = (err) => {
+        console.error('图片加载失败:', err);
+      };
+    } else {
+      // 低版本基础库使用 wx.getImageInfo() 获取图片信息
+      wx.getImageInfo({
+        src: url,
+        success: (res) => {
+          let imgWidth = res.width;
+          let imgHeight = res.height;
+          let imageWidth = this.data.screenWidth;
+          let imageHeight = (imgHeight / imgWidth) * imageWidth;
+      
+          if (imageHeight > this.data.screenHeight) {
+            imageHeight = this.data.screenHeight;
+            imageWidth = (imgWidth / imgHeight) * imageHeight;
+          }
+          this.setData({
+            imageWidth: imageWidth,
+            imageHeight: imageHeight,
+          });
+        },
+        fail: (err) => {
+          console.error('获取图片信息失败:', err);
+        }
+      })
+    };
+ 
+    if (expandedFiles) {
+      this.setData({
+        showOverlay: false,  // 隐藏遮罩
+        expandedImageSrc: '',  // 清空放大的图片路径
+        expandedFiles: false,  // 更新expandedFiles状态
+        imageWidth: 0,
+        imageHeight: 0,
+      });
+    } else {
+      this.setData({
+        showOverlay: true,
+        expandedImageSrc: url,  // 设置放大图片的路径
+        expandedFiles: true,  // 更新expandedFiles状态
+      });
+    }
   },
   
   toggleSidebar() {
@@ -785,4 +873,5 @@ Page({
       sidebarOpen: !this.data.sidebarOpen
     });
   },
+
 })

@@ -33,8 +33,9 @@
               wx:elif="{{segment.type === 'image'}}"
               src="{{segment.url}}"
               mode="aspectFit"
-              class="preview-image {{expandedFiles[index] ? 'expanded' : ''}}"
+              class="preview-image"
               bindtap="toggleFilePreview"
+              data-src="{{segment.url}}"
               data-index="{{index}}"
             />
             
@@ -51,7 +52,7 @@
               </view>
             </view>
           </block>
-          
+
           <!-- 复制按钮 -->
           <view class="copy-message-btn" bindtap="copyMessage" data-message="{{item}}">
             <image src="/img/copy.png"></image>
@@ -92,7 +93,12 @@
         </view>
       </view>
     </block>
+                <!-- 放大图片后的遮罩层 -->
+    <view wx:if="{{showOverlay}}" class="overlay" bindtap="toggleFilePreview">
+      <image src="{{expandedImageSrc}}" class="expanded-image" style="width: {{imageWidth}}px; height: {{imageHeight}}px;" />
+    </view>
   </scroll-view>
+
   <view class="input-area">
     <!-- 文件预览区域 -->
     <view class="file-preview-area {{selectedFile ? 'active' : ''}}" wx:if="{{selectedFile}}">

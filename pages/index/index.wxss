@@ -2,8 +2,8 @@
   height: 100vh;
   display: flex;
   flex-direction: column;
-  justify-content : space-between;
-  background-color: #f5f5f5;
+  justify-content: space-between;
+  background-color: #262626; /* 保持背景颜色为深色 */
   position: relative;
 }
 
@@ -13,7 +13,7 @@
   left: 0;
   right: 0;
   height: 40px;
-  background-color: #f5f5f5;
+  background-color: #0a0a0a; /* 保持背景颜色为深色 */
   display: flex;
   align-items: center;
   padding: 80px 16px 0;
@@ -26,7 +26,7 @@
   text-align: center;
   font-size: 17px;
   font-weight: 500;
-  color: #333;
+  color: #ffffff; /* 保持文字颜色为白色 */
 }
 
 .header .register-btn {
@@ -90,15 +90,16 @@
 .message-text {
   padding: 8px 12px;
   border-radius: 12px;
-  background-color: #fff;
+  background-color: #282c34; /* 改变背景颜色以匹配第一个代码 */
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   word-break: break-word;
   line-height: 1.4;
+  color: #fff; /* 保持文字颜色为白色 */
 }
 
 .message.user .message-text {
-  background-color: #007AFF;
-  color: #fff;
+  background-color: #3a404d; /* 改变用户消息的背景颜色以匹配第一个代码 */
+  color: #fff; /* 保持文字颜色为白色 */
 }
 
 .copy-message-btn {
@@ -140,129 +141,22 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background-color: #fff;
-  border-top: 1px solid #eee;
+  background-color: #262626; /* 改变输入区域的背景颜色以匹配第一个代码 */
+  border-top: 1px solid #262626;
   padding: 8px 0;
   z-index: 100;
 }
 
-.file-preview-area {
-  position: relative;
-  padding: 8px;
-  background: #fff;
-  border-top: 1px solid #eee;
-  max-height: 80px;
-  transition: all 0.3s ease;
-}
-
-.file-preview-box {
-  display: flex;
-  align-items: center;
-  background: #f5f5f5;
-  border-radius: 8px;
-  padding: 6px 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.preview-content {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  min-width: 0;
-}
-
-.preview-image {
-  width: 32px;
-  height: 32px;
-  border-radius: 4px;
-  object-fit: cover;
-  margin-right: 8px;
-  transition: all 0.3s ease;
-}
-
-.preview-image.expanded {
-  width: 200px;
-  height: 200px;
-}
-
-.file-icon {
-  font-size: 20px;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #fff;
-  border-radius: 4px;
-  margin-right: 8px;
-}
-/* 遮罩层样式 */
-.overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.7);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-width: 0;
-}
-
-image.expanded-image {
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;  /* 保持图片原始比例 */
-  height: auto; /* 自动高度 */
-  object-fit: contain;  /* 保持原始比例，且不裁剪 */
-}
-
-.file-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.file-name {
-  font-size: 12px;
-  color: #333;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.file-size {
-  font-size: 10px;
-  color: #999;
-}
-
-.close-btn {
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.1);
-  color: #666;
-  font-size: 14px;
-  margin-left: 8px;
-}
-
-.close-btn:hover {
-  background: rgba(0, 0, 0, 0.2);
-}
-
+/* 输入框样式调整 */
 /* 输入框样式调整 */
 .input-box {
   display: flex;
   align-items: center;
-  background-color: #f5f5f5;
+  background-color: #262626; /* 改变输入框背景颜色以匹配第一个代码 */
   border-radius: 20px;
   padding: 4px 8px;
   margin: 0 12px;
+  border: 1px solid white;
 }
 
 .input-box input {
@@ -271,6 +165,7 @@ image.expanded-image {
   font-size: 14px;
   background: transparent;
   margin: 0 8px;
+  color: #fff; /* 添加此行以更改输入文本的颜色 */
 }
 
 .upload-btn,
@@ -290,114 +185,4 @@ image.expanded-image {
   width: 20px;
   height: 20px;
   opacity: 0.7;
-}
-
-.file-preview {
-  background-color: #f8f8f8;
-  border-radius: 8px;
-  padding: 8px;
-  margin: 5px 0;
-  display: flex;
-  align-items: center;
-  max-width: 80%;
-}
-
-.file-preview .file-icon {
-  width: 24px;
-  height: 24px;
-  margin-right: 8px;
-}
-
-.file-preview .file-info {
-  flex: 1;
-  font-size: 12px;
-  color: #666;
-}
-
-.file-preview .delete-icon {
-  width: 16px;
-  height: 16px;
-  padding: 2px;
-  margin-left: 8px;
-}
-
-.file-preview-box .file-size {
-  font-size: 12px;
-  color: #999;
-}
-
-.file-preview-box .close-btn {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  width: 20px;
-  height: 20px;
-  background-color: #fff;
-  border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.file-preview-box .close-btn image {
-  width: 12px;
-  height: 12px;
-}
-
-.code-block {
-  margin: 8px 0;
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.code-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10rpx 20rpx;
-  background: #323232;
-  height: 40rpx;
-}
-
-.language {
-  font-size: 24rpx;
-  color: #fff;
-}
-
-.code-block .copy-btn {
-  font-size: 24rpx;
-  color: #007AFF;
-  padding: 4rpx 16rpx;
-  background: #fff;
-  border-radius: 4rpx;
-  height: 32rpx;
-  line-height: 32rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 80rpx;
-  border: 1px solid #e0e0e0;
-}
-
-.code-content {
-  padding: 20rpx;
-  font-family: monospace;
-  white-space: pre-wrap;
-  font-size: 24rpx;
-  line-height: 1.5;
-  overflow-x: auto;
-  background: #1e1e1e;
-  color: #fff;
-}
-
-.message-file {
-  width: 200px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.message-file.expanded {
-  width: 100%;
 }
